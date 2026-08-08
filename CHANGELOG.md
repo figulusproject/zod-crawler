@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.0.0] - 2026-08-08
+
+### Changed
+
+- First stable release - no functional changes from `0.1.0`.
+
+### Fixed
+
+- `apps/cli` Docker image: `npm run build` also built `@zod-crawler/web`, which the image's build context never copied in, failing with `TS5083: Cannot read file 'apps/web/tsconfig.server.json'`. The build now runs `tsc -b apps/cli`, scoped to `apps/cli` and its `packages/core` reference.
+
 ## [0.1.0] - 2026-08-08
 
 ### Added
