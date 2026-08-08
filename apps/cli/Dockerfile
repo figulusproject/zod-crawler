@@ -17,10 +17,11 @@ COPY packages/core/package.json packages/core/package.json
 COPY apps/cli/package.json apps/cli/package.json
 RUN npm ci
 
-COPY tsconfig.json tsconfig.base.json ./
+COPY tsconfig.base.json ./
 COPY packages/core packages/core
 COPY apps/cli apps/cli
-RUN npm run build
+# Builds only apps/cli + packages/core - apps/web isn't copied into this context.
+RUN npx tsc -b apps/cli && chmod +x apps/cli/dist/index.js
 
 # Drop devDependencies (typescript, vitest, @types/node, ...) and TS
 # sources - already compiled, not needed at runtime. `npm prune` prunes in
