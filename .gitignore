@@ -1,0 +1,8 @@
+node_modules/
+dist/
+dist-ssr/
+*.tsbuildinfo
+*.local
+.DS_Store
+packages/*/LICENSE
+apps/*/LICENSE

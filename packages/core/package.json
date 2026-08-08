@@ -1,0 +1,39 @@
+{
+  "name": "@zod-crawler/core",
+  "version": "0.1.0",
+  "description": "Infers a Zod v4 schema from a set of sampled JSON values.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "prepack": "cp ../../LICENSE ./LICENSE"
+  },
+  "dependencies": {
+    "zod": "^4.4.3",
+    "zod-transformers": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/figulusproject/zod-crawler",
+    "directory": "packages/core"
+  },
+  "author": "The Figulus Project",
+  "license": "MIT"
+}

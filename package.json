@@ -1,0 +1,28 @@
+{
+  "name": "zod-crawler",
+  "private": true,
+  "description": "Infers a Zod schema from a set of sampled JSON API responses.",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "tsc -b && chmod +x apps/cli/dist/index.js && npm run build --workspace=@zod-crawler/web",
+    "clean": "tsc -b --clean",
+    "typecheck": "tsc -b --force && npm run typecheck --workspace=@zod-crawler/web",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "sync-versions": "tsx scripts/sync-versions.ts"
+  },
+  "devDependencies": {
+    "prettier": "^3.8.3",
+    "prettier-plugin-tailwindcss": "^0.8.0",
+    "tsx": "^4",
+    "typescript": "^5",
+    "vitest": "^4",
+    "zod": "^4.4.3",
+    "zod-cli-flags": "^1.0.0"
+  }
+}

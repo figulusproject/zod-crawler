@@ -1,0 +1,39 @@
+{
+  "name": "@zod-crawler/cli",
+  "version": "0.1.0",
+  "description": "Fetches a set of JSON API responses and generates a Zod v4 schema that validates all of them.",
+  "type": "module",
+  "bin": {
+    "zod-crawler": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -b && chmod +x dist/index.js",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "start": "node dist/index.js",
+    "prepack": "cp ../../LICENSE ./LICENSE"
+  },
+  "dependencies": {
+    "@zod-crawler/core": "^0.1.0",
+    "prettier": "^3.8.3",
+    "zod": "^4.4.3",
+    "zod-cli-flags": "^1.0.0",
+    "zod-transformers": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/figulusproject/zod-crawler",
+    "directory": "apps/cli"
+  },
+  "author": "The Figulus Project",
+  "license": "MIT"
+}
