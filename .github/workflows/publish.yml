@@ -5,6 +5,15 @@ on:
     tags:
       - "v*.*.*"
   workflow_dispatch:
+    inputs:
+      workspace:
+        description: "Workspace to publish (leave blank to publish all)"
+        type: choice
+        options:
+          - ""
+          - "@zod-crawler/core"
+          - "@zod-crawler/cli"
+        default: ""
 
 permissions:
   id-token: write
@@ -30,9 +39,15 @@ jobs:
         run: npm run build
 
       - name: Publish
-        run: npm publish --workspaces --access public
+        run: |
+          if [ -n "${{ inputs.workspace }}" ]; then
+            npm publish --workspace="${{ inputs.workspace }}" --access public
+          else
+            npm publish --workspaces --access public
+          fi
 
   docker:
+    if: ${{ github.event_name == 'push' || inputs.workspace == '' }}
     runs-on: ubuntu-latest
     environment: Publish
     strategy:
