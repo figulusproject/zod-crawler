@@ -95,6 +95,42 @@ describe("fetchAndCacheSamples", () => {
     expect(fetchOne).toHaveBeenCalledTimes(1);
   });
 
+  it("skips a failed id and continues with the rest, by default", async () => {
+    const fetchOne = vi.fn(async (id: string) => {
+      if (id === "b") throw new Error("boom");
+      return { id };
+    });
+
+    const samples = await fetchAndCacheSamples({
+      ids: ["a", "b", "c"],
+      outputDir,
+      delayMs: 0,
+      fetchOne,
+    });
+
+    expect(fetchOne).toHaveBeenCalledTimes(3);
+    expect(samples).toEqual({ a: { id: "a" }, c: { id: "c" } });
+  });
+
+  it("stops the whole run on a failed id when continueOnError is false", async () => {
+    const fetchOne = vi.fn(async (id: string) => {
+      if (id === "b") throw new Error("boom");
+      return { id };
+    });
+
+    await expect(
+      fetchAndCacheSamples({
+        ids: ["a", "b", "c"],
+        outputDir,
+        delayMs: 0,
+        fetchOne,
+        continueOnError: false,
+      }),
+    ).rejects.toThrow(/Failed to fetch id "b"/);
+
+    expect(fetchOne).toHaveBeenCalledTimes(2);
+  });
+
   it("leaves already-fetched ids cached on disk when a later id fails (resumability)", async () => {
     const fetchOne = vi.fn(async (id: string) => {
       if (id === "b") throw new Error("boom");
@@ -107,6 +143,7 @@ describe("fetchAndCacheSamples", () => {
         outputDir,
         delayMs: 0,
         fetchOne,
+        continueOnError: false,
       }),
     ).rejects.toThrow(/Failed to fetch id "b"/);
 
@@ -144,7 +181,32 @@ describe("fetchAndCacheSamples", () => {
     expect(events).toEqual(["cached 1/2 a", "fetching 2/2 b", "done 2/2 b"]);
   });
 
-  it("reports an error progress event before throwing on a failed fetch", async () => {
+  it("reports an error progress event, with the error message, and moves on", async () => {
+    const fetchOne = vi.fn(async (id: string) => {
+      if (id === "a") throw new Error("boom");
+      return { id };
+    });
+    const events: { status: string; error?: string }[] = [];
+
+    const samples = await fetchAndCacheSamples({
+      ids: ["a", "b"],
+      outputDir,
+      delayMs: 0,
+      fetchOne,
+      onProgress: (event) =>
+        events.push({ status: event.status, error: event.error }),
+    });
+
+    expect(events).toEqual([
+      { status: "fetching", error: undefined },
+      { status: "error", error: "boom" },
+      { status: "fetching", error: undefined },
+      { status: "done", error: undefined },
+    ]);
+    expect(samples).toEqual({ b: { id: "b" } });
+  });
+
+  it("reports an error progress event before throwing when continueOnError is false", async () => {
     const fetchOne = vi.fn(async () => {
       throw new Error("boom");
     });
@@ -156,6 +218,7 @@ describe("fetchAndCacheSamples", () => {
         outputDir,
         delayMs: 0,
         fetchOne,
+        continueOnError: false,
         onProgress: (event) => events.push(event.status),
       }),
     ).rejects.toThrow();

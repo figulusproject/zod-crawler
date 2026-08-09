@@ -1,7 +1,7 @@
 # @zod-crawler/core
 
 [![CI](https://github.com/figulusproject/zod-crawler/actions/workflows/ci.yml/badge.svg)](https://github.com/figulusproject/zod-crawler/actions/workflows/ci.yml)
-[![NPM version](https://badge.fury.io/js/@zod-crawler/core.svg)](http://badge.fury.io/js/@zod-crawler/core)
+[![npm version](https://badge.fury.io/js/@zod-crawler%2Fcore.svg)](https://badge.fury.io/js/@zod-crawler%2Fcore)
 
 > _Everyone has the right to resist occupation._
 

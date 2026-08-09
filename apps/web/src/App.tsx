@@ -27,6 +27,7 @@ export function App() {
       schemaName: form.schemaName.trim() || undefined,
       emitCrawlCandidates: form.emitCrawlCandidates,
       useZodTransformers: form.useZodTransformers,
+      stopOnError: form.stopOnError,
     });
   };
 

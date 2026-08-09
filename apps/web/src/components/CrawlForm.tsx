@@ -111,6 +111,16 @@ export function CrawlForm({
         <Label htmlFor="useZodTransformers">Use zod-transformers imports</Label>
       </div>
 
+      <div className="flex items-center gap-2">
+        <Switch
+          id="stopOnError"
+          checked={form.stopOnError}
+          onCheckedChange={(checked) => onChange({ stopOnError: checked })}
+          disabled={disabled}
+        />
+        <Label htmlFor="stopOnError">Stop crawl on first failed fetch</Label>
+      </div>
+
       <Button
         type="submit"
         disabled={disabled || idCount === 0 || urlTemplateInvalid}

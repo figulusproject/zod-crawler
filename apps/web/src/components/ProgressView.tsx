@@ -43,7 +43,7 @@ export function ProgressView({ rows }: ProgressViewProps) {
         {rows.map((row) => (
           <li key={row.id} className="flex items-center justify-between gap-2">
             <span className="truncate font-mono">{row.id}</span>
-            <Badge variant={STATUS_VARIANT[row.status]}>
+            <Badge variant={STATUS_VARIANT[row.status]} title={row.error}>
               {STATUS_LABEL[row.status]}
             </Badge>
           </li>

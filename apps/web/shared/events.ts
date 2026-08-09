@@ -10,6 +10,7 @@ export interface CrawlRequest {
   schemaName?: string;
   emitCrawlCandidates: boolean;
   useZodTransformers: boolean;
+  stopOnError: boolean;
 }
 
 export interface StartCrawlResponse {
@@ -22,6 +23,11 @@ export interface ValidationFailure {
   error: string;
 }
 
+export interface FetchFailure {
+  id: string;
+  error: string;
+}
+
 export interface CrawlCompleteEvent {
   schema: string;
   schemaName: string;
@@ -29,6 +35,7 @@ export interface CrawlCompleteEvent {
     total: number;
     failures: ValidationFailure[];
   };
+  fetchFailures: FetchFailure[];
   candidates?: CrawlCandidateField[];
 }
 

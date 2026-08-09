@@ -121,6 +121,77 @@ describe("runCli", () => {
     ).rejects.toThrow();
   });
 
+  it("logs a failed fetch and continues with the rest by default", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.endsWith("/b.json")) {
+          return {
+            ok: false,
+            status: 404,
+            statusText: "Not Found",
+          } as Response;
+        }
+        return jsonResponse({ title: "Book" });
+      }),
+    );
+
+    const code = await runCli([
+      "--ids",
+      "a,b",
+      "--output",
+      outputDir,
+      "--delay",
+      "0",
+      "--url-template",
+      "https://example.com/{id}.json",
+    ]);
+
+    expect(code).toBe(0);
+    expect(
+      consoleError.mock.calls.some((call) =>
+        String(call[0]).includes("error 2/2: b"),
+      ),
+    ).toBe(true);
+
+    const cacheFiles = await readdir(path.join(outputDir, "cache"));
+    expect(cacheFiles.filter((f) => f !== "manifest.json")).toHaveLength(1);
+    consoleError.mockRestore();
+  });
+
+  it("aborts the whole run on a failed fetch when --stop-on-error is set", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.endsWith("/b.json")) {
+          return {
+            ok: false,
+            status: 404,
+            statusText: "Not Found",
+          } as Response;
+        }
+        return jsonResponse({ title: "Book" });
+      }),
+    );
+
+    const code = await runCli([
+      "--ids",
+      "a,b",
+      "--output",
+      outputDir,
+      "--delay",
+      "0",
+      "--url-template",
+      "https://example.com/{id}.json",
+      "--stop-on-error",
+    ]);
+
+    expect(code).toBe(1);
+  });
+
   it("returns a non-zero exit code and prints usage on invalid args", async () => {
     const consoleError = vi
       .spyOn(console, "error")

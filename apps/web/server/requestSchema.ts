@@ -12,6 +12,7 @@ export interface ResolvedCrawlRequest {
   schemaName: string;
   emitCrawlCandidates: boolean;
   useZodTransformers: boolean;
+  stopOnError: boolean;
 }
 
 const rawRequestSchema = z.object({
@@ -21,6 +22,7 @@ const rawRequestSchema = z.object({
   schemaName: z.string().optional(),
   emitCrawlCandidates: z.boolean().default(false),
   useZodTransformers: z.boolean().default(false),
+  stopOnError: z.boolean().default(false),
 });
 
 // Mirrors the CLI's settingsSchema transform (apps/cli/src/cliArgs.ts), from the same constants so the two can't drift.
@@ -64,6 +66,7 @@ export const crawlRequestSchema = rawRequestSchema.transform(
       schemaName,
       emitCrawlCandidates: raw.emitCrawlCandidates,
       useZodTransformers: raw.useZodTransformers,
+      stopOnError: raw.stopOnError,
     };
   },
 );

@@ -15,6 +15,7 @@ import type {
   CrawlCompleteEvent,
   CrawlErrorEvent,
   CrawlProgressEvent,
+  FetchFailure,
   ValidationFailure,
 } from "../shared/events.js";
 import type { ResolvedCrawlRequest } from "./requestSchema.js";
@@ -53,14 +54,21 @@ async function runJob(
 ): Promise<void> {
   const tmpDir = await mkdtemp(path.join(tmpdir(), "zod-crawler-web-"));
 
+  const fetchFailures: FetchFailure[] = [];
+
   try {
     const samples = await fetchAndCacheSamples({
       ids: request.ids,
       outputDir: tmpDir,
       delayMs: request.delayMs,
       fetchOne: createUrlFetcher(request.urlTemplate),
-      onProgress: (event: CrawlProgressEvent) =>
-        job.emitter.emit("progress", event),
+      continueOnError: !request.stopOnError,
+      onProgress: (event: CrawlProgressEvent) => {
+        if (event.status === "error" && event.error !== undefined) {
+          fetchFailures.push({ id: event.id, error: event.error });
+        }
+        job.emitter.emit("progress", event);
+      },
     });
 
     const schemaName = request.schemaName;
@@ -83,6 +91,7 @@ async function runJob(
       schema: formatted,
       schemaName,
       validation: { total: results.size, failures },
+      fetchFailures,
       candidates: request.emitCrawlCandidates
         ? findNewCrawlCandidates(samples, request.ids)
         : undefined,

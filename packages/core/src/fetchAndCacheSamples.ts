@@ -8,6 +8,7 @@ export interface FetchProgressEvent {
   index: number;
   total: number;
   status: "cached" | "fetching" | "done" | "error";
+  error?: string;
 }
 
 export interface FetchAndCacheSamplesOptions {
@@ -16,6 +17,8 @@ export interface FetchAndCacheSamplesOptions {
   delayMs: number;
   fetchOne: (id: string) => Promise<unknown>;
   onProgress?: (event: FetchProgressEvent) => void;
+  // When true (the default), a failed fetch is reported via onProgress and skipped rather than aborting the whole run.
+  continueOnError?: boolean;
 }
 
 // bigint isn't JSON-serializable by default, and a pluggable fetchOne could plausibly produce one.
@@ -82,6 +85,7 @@ export async function fetchAndCacheSamples({
   delayMs,
   fetchOne,
   onProgress,
+  continueOnError = true,
 }: FetchAndCacheSamplesOptions): Promise<Record<string, JsonValue>> {
   const cacheDir = path.join(outputDir, "cache");
   await mkdir(cacheDir, { recursive: true });
@@ -92,6 +96,7 @@ export async function fetchAndCacheSamples({
     const id = ids[index];
     const cachePath = cacheFilePath(cacheDir, id);
     const total = ids.length;
+    const isLast = index === ids.length - 1;
 
     if (await fileExists(cachePath)) {
       onProgress?.({ id, index, total, status: "cached" });
@@ -104,13 +109,17 @@ export async function fetchAndCacheSamples({
     try {
       data = await fetchOne(id);
     } catch (error) {
-      onProgress?.({ id, index, total, status: "error" });
-      throw new Error(
-        `Failed to fetch id "${id}": ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-        { cause: error },
-      );
+      const message = error instanceof Error ? error.message : String(error);
+      onProgress?.({ id, index, total, status: "error", error: message });
+      if (!continueOnError) {
+        throw new Error(`Failed to fetch id "${id}": ${message}`, {
+          cause: error,
+        });
+      }
+      if (delayMs > 0 && !isLast) {
+        await sleep(delayMs);
+      }
+      continue;
     }
 
     const serialized = bigintSafeStringify(data);
@@ -120,7 +129,6 @@ export async function fetchAndCacheSamples({
     samples[id] = JSON.parse(serialized);
     onProgress?.({ id, index, total, status: "done" });
 
-    const isLast = index === ids.length - 1;
     if (delayMs > 0 && !isLast) {
       await sleep(delayMs);
     }
