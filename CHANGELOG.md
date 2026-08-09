@@ -10,7 +10,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - A failed fetch (a non-2xx response, a network error, etc.) is now a soft failure by default: it's logged and the run continues with the rest of the ids, instead of aborting the whole crawl. Previously any failed fetch aborted the entire run. Use `continueOnError: false` (core), `--stop-on-error` (CLI), or the web app's toggle to restore that behavior.
 
-
 ## [1.0.0] - 2026-08-08
 
 ### Changed
