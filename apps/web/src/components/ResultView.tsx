@@ -10,6 +10,7 @@ interface ResultViewProps {
 export function ResultView({ result }: ResultViewProps) {
   const [copied, setCopied] = useState(false);
   const { failures, total } = result.validation;
+  const { fetchFailures } = result;
 
   const handleCopy = () => {
     void navigator.clipboard.writeText(result.schema).then(() => {
@@ -65,6 +66,27 @@ export function ResultView({ result }: ResultViewProps) {
       <pre className="max-h-96 overflow-auto rounded-md border bg-muted p-4 font-mono text-xs">
         {result.schema}
       </pre>
+
+      {fetchFailures.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <h3 className="text-sm font-medium text-destructive">
+            {fetchFailures.length} id(s) failed to fetch and were skipped
+          </h3>
+          <ul className="flex flex-col gap-2 text-xs">
+            {fetchFailures.map((failure) => (
+              <li
+                key={failure.id}
+                className="rounded-md border border-destructive/30 p-2"
+              >
+                <div className="font-mono font-medium">{failure.id}</div>
+                <pre className="whitespace-pre-wrap text-muted-foreground">
+                  {failure.error}
+                </pre>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {failures.length > 0 && (
         <div className="flex flex-col gap-2">

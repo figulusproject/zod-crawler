@@ -16,6 +16,7 @@ export interface CliSettings {
   schemaName: string;
   emitCrawlCandidates: boolean;
   useZodTransformers: boolean;
+  stopOnError: boolean;
 }
 
 export type ParseCliArgsResult =
@@ -24,7 +25,7 @@ export type ParseCliArgsResult =
 export const USAGE =
   "Usage: zod-crawler (--ids <id1,id2,...> | --ids-file <path>) --output <dir> " +
   "[--url-template <template containing {id}>] [--delay <ms>] [--schema-name <name>] " +
-  "[--emit-crawl-candidates] [--zod-transformers]";
+  "[--emit-crawl-candidates] [--zod-transformers] [--stop-on-error]";
 
 const cli = defineCli({
   flags: {
@@ -41,6 +42,10 @@ const cli = defineCli({
     zodTransformers: {
       schema: z.boolean().default(false),
       long: "zod-transformers",
+    },
+    stopOnError: {
+      schema: z.boolean().default(false),
+      long: "stop-on-error",
     },
   },
   usage: USAGE,
@@ -121,6 +126,7 @@ const settingsSchema = cli.flagsSchema.transform((raw, ctx): CliSettings => {
     schemaName,
     emitCrawlCandidates: raw.emitCrawlCandidates,
     useZodTransformers: raw.zodTransformers,
+    stopOnError: raw.stopOnError,
   };
 });
 

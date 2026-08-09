@@ -16,6 +16,7 @@ describe("parseCliArgs", () => {
       expect(result.settings.urlTemplate).toBeUndefined();
       expect(result.settings.emitCrawlCandidates).toBe(false);
       expect(result.settings.useZodTransformers).toBe(false);
+      expect(result.settings.stopOnError).toBe(false);
     }
   });
 
@@ -46,6 +47,21 @@ describe("parseCliArgs", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.settings.useZodTransformers).toBe(true);
+    }
+  });
+
+  it("sets stopOnError when --stop-on-error is passed", () => {
+    const result = parseCliArgs([
+      "--ids",
+      "a",
+      "--output",
+      "/tmp/out",
+      "--stop-on-error",
+    ]);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.settings.stopOnError).toBe(true);
     }
   });
 

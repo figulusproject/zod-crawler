@@ -18,6 +18,10 @@ function logFetchProgress(event: FetchProgressEvent): void {
     console.error(
       `${event.status} ${event.index + 1}/${event.total}: ${event.id}`,
     );
+  } else if (event.status === "error") {
+    console.error(
+      `error ${event.index + 1}/${event.total}: ${event.id}: ${event.error}`,
+    );
   }
 }
 
@@ -41,10 +45,18 @@ export async function runCli(argv: string[]): Promise<number> {
       delayMs: settings.delayMs,
       fetchOne: createUrlFetcher(settings.urlTemplate),
       onProgress: logFetchProgress,
+      continueOnError: !settings.stopOnError,
     });
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     return 1;
+  }
+
+  const failedFetchCount = settings.ids.length - Object.keys(samples).length;
+  if (failedFetchCount > 0) {
+    console.error(
+      `${failedFetchCount}/${settings.ids.length} id(s) failed to fetch and were skipped.`,
+    );
   }
 
   const source = inferSchema(

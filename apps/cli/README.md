@@ -36,6 +36,7 @@ a fresh fetch.
 | `--schema-name`           | no (default `InferredSchema`) | Name of the exported `const` in the generated schema file.                                                                                                                                                                                                             |
 | `--emit-crawl-candidates` | no (default off)              | Also write `crawl-candidates.txt`: ids/URLs found in the fetched samples that look worth fetching next. See "Crawling further" below.                                                                                                                                  |
 | `--zod-transformers`      | no (default off)              | Generated fields that would otherwise inline an empty-string-as-undefined union instead import `emptyStringAsUndefined` from `zod-transformers`. Install `zod-transformers` alongside `zod` in whatever project consumes the generated `schema.ts` if you enable this. |
+| `--stop-on-error`         | no (default off)              | By default, a failed fetch (a non-2xx response, a network error, etc.) is logged and skipped, and the crawl continues with the rest of the ids. Set this to abort the whole run on the first failed fetch instead.                                                     |
 
 ### Example
 

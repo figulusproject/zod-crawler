@@ -21,6 +21,7 @@ function baseRequest(
     delayMs: 0,
     schemaName: "InferredSchema",
     emitCrawlCandidates: false,
+    stopOnError: false,
     ...overrides,
   };
 }
@@ -62,6 +63,31 @@ describe("crawlJobs", () => {
     expect(complete.schema).toContain("export const InferredSchema");
     expect(complete.validation.failures).toEqual([]);
     expect(complete.validation.total).toBe(2);
+    expect(complete.fetchFailures).toEqual([]);
+  });
+
+  it("skips a failed fetch by default and reports it in fetchFailures", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.endsWith("/b.json")) {
+          return jsonResponse(null, { ok: false, status: 404 });
+        }
+        return jsonResponse({ title: "Book A" });
+      }),
+    );
+
+    const jobId = startCrawlJob(baseRequest({}));
+    const job = getJob(jobId);
+
+    const complete = await new Promise<CrawlCompleteEvent>((resolve) =>
+      job!.emitter.once("complete", resolve),
+    );
+
+    expect(complete.fetchFailures).toEqual([
+      { id: "b", error: expect.stringContaining("404") as string },
+    ]);
+    expect(complete.validation.total).toBe(1);
   });
 
   it("excludes this run's own seed ids from crawl candidates", async () => {
@@ -96,7 +122,9 @@ describe("crawlJobs", () => {
       vi.fn(async () => jsonResponse(null, { ok: false, status: 404 })),
     );
 
-    const jobId = startCrawlJob(baseRequest({ ids: ["missing"] }));
+    const jobId = startCrawlJob(
+      baseRequest({ ids: ["missing"], stopOnError: true }),
+    );
 
     await vi.waitFor(() => {
       expect(getJob(jobId)?.status).toBe("error");

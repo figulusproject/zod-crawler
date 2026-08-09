@@ -12,6 +12,7 @@ export type CrawlPhase = "idle" | "running" | "done" | "error";
 export interface ProgressRow {
   id: string;
   status: "pending" | CrawlProgressEvent["status"];
+  error?: string;
 }
 
 interface CrawlRunState {
@@ -49,6 +50,7 @@ function reducer(state: CrawlRunState, action: Action): CrawlRunState {
       rows[action.event.index] = {
         id: action.event.id,
         status: action.event.status,
+        error: action.event.error,
       };
       return { ...state, rows };
     }
