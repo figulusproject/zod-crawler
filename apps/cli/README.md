@@ -1,7 +1,8 @@
 # @zod-crawler/cli
 
 [![CI](https://github.com/figulusproject/zod-crawler/actions/workflows/ci.yml/badge.svg)](https://github.com/figulusproject/zod-crawler/actions/workflows/ci.yml)
-[![NPM version](https://badge.fury.io/js/@zod-crawler/cli.svg)](http://badge.fury.io/js/@zod-crawler/cli)
+[![npm version](https://badge.fury.io/js/@zod-crawler%2Fcli.svg)](https://badge.fury.io/js/@zod-crawler%2Fcli)
+[![Docker version](https://img.shields.io/docker/v/figulusproject/zod-crawler-cli?sort=semver&label=docker)](https://hub.docker.com/r/figulusproject/zod-crawler-cli)
 
 > _Everyone has the right to resist occupation._
 
