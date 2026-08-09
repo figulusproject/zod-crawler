@@ -10,15 +10,19 @@ const REPO_ROOT = path.resolve(
 );
 
 const cli = defineCli({
-  flags: {
-    version: {
-      schema: z.string().regex(/^\d+\.\d+\.\d+$/, "must look like X.Y.Z"),
-      description: "The version to set on every workspace package.",
-    },
+  positionals: {
+    schema: z
+      .array(z.string().regex(/^\d+\.\d+\.\d+$/, "must look like X.Y.Z"))
+      .min(1, { error: "You must provide a version number!" })
+      .max(1, { error: "Received too many arguments! Expected exactly one." }),
+    label: "<version>",
   },
+  flags: {},
 });
 
-const { data } = cli.parseOrExit(process.argv);
+const {
+  positionals: [version],
+} = cli.parseOrExit(process.argv);
 
 const workspaceRootSchema = z.object({ workspaces: z.array(z.string()) });
 const packageJsonSchema = z.object({
@@ -67,18 +71,18 @@ const DEPENDENCY_FIELDS = [
 ] as const;
 
 for (const { packageJsonPath, contents, name } of packages) {
-  contents.version = data.version;
+  contents.version = version;
   for (const field of DEPENDENCY_FIELDS) {
     const deps = contents[field];
     if (!deps) continue;
     for (const depName of Object.keys(deps)) {
       if (workspacePackageNames.has(depName)) {
-        deps[depName] = `^${data.version}`;
+        deps[depName] = `^${version}`;
       }
     }
   }
   writeFileSync(packageJsonPath, JSON.stringify(contents, null, 2) + "\n");
   console.log(
-    `${name}: ${data.version} (${path.relative(REPO_ROOT, packageJsonPath)})`,
+    `${name}: ${version} (${path.relative(REPO_ROOT, packageJsonPath)})`,
   );
 }
