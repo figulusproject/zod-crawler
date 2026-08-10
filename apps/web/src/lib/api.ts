@@ -1,4 +1,5 @@
 import type {
+  ActiveCrawlSummary,
   CrawlCompleteEvent,
   CrawlErrorEvent,
   CrawlProgressEvent,
@@ -24,6 +25,14 @@ export async function startCrawl(request: CrawlRequest): Promise<string> {
 
   const data = (await response.json()) as StartCrawlResponse;
   return data.jobId;
+}
+
+export async function listActiveCrawls(): Promise<ActiveCrawlSummary[]> {
+  const response = await fetch("/api/crawls");
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`);
+  }
+  return (await response.json()) as ActiveCrawlSummary[];
 }
 
 export interface CrawlSubscriptionHandlers {

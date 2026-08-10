@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import type { ProgressRow } from "@/hooks/useCrawlRun";
+import type { ProgressRow } from "@/hooks/useCrawlJobs";
 
 const STATUS_LABEL: Record<ProgressRow["status"], string> = {
   pending: "pending",
