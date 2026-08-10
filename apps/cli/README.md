@@ -132,8 +132,9 @@ fork that stayed on the original BSD-3-Clause license Redis used through
 to version 7.2 - a drop-in, wire-compatible replacement, so nothing here needs
 to know the difference.
 
-This requires installing BullMQ's client libraries yourself, since they're
-optional peer dependencies (not pulled in by default):
+Via `npx @zod-crawler/cli`, this requires installing BullMQ's client
+libraries yourself, since they're optional peer dependencies (not pulled in
+by default):
 
 ```bash
 npm install bullmq ioredis
@@ -149,6 +150,24 @@ npx @zod-crawler/cli \
   --redis-url redis://localhost:6379 \
   --concurrency 4
 ```
+
+The default `figulusproject/zod-crawler-cli` Docker image already bundles
+`bullmq`/`ioredis` and a background Valkey server, with `REDIS_URL` preset
+to it, so advanced queuing works with no setup:
+
+```bash
+docker run --rm -v "$(pwd)/out:/out" figulusproject/zod-crawler-cli \
+  --ids "1,2,3" \
+  --url-template "https://example.com/items/{id}" \
+  --output /out \
+  --concurrency 4
+```
+
+That Valkey instance isn't persisted across container restarts, which is
+fine for a single run. For a Redis/Valkey instance shared across multiple
+runs, use the smaller `figulusproject/zod-crawler-cli:slim` tag instead
+and pass `--redis-url`/`REDIS_URL` yourself - it has no bundled Valkey and
+falls back to the default sequential queue if neither is set.
 
 ## How it works
 

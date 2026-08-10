@@ -53,10 +53,34 @@ jobs:
     strategy:
       matrix:
         include:
+          # runtime-bundled: default target, tagged normally - bundles a
+          # background Valkey server so the image works standalone.
           - image: zod-crawler-web
             dockerfile: apps/web/Dockerfile
+            target: runtime-bundled
+            tags: |
+              type=semver,pattern={{version}}
+              type=raw,value=latest
+          # runtime-external: no bundled Valkey, smaller - tagged "slim".
+          # Needs REDIS_URL pointed at your own instance.
+          - image: zod-crawler-web
+            dockerfile: apps/web/Dockerfile
+            target: runtime-external
+            tags: |
+              type=semver,pattern={{version}}-slim
+              type=raw,value=slim
           - image: zod-crawler-cli
             dockerfile: apps/cli/Dockerfile
+            target: runtime-bundled
+            tags: |
+              type=semver,pattern={{version}}
+              type=raw,value=latest
+          - image: zod-crawler-cli
+            dockerfile: apps/cli/Dockerfile
+            target: runtime-external
+            tags: |
+              type=semver,pattern={{version}}-slim
+              type=raw,value=slim
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -75,15 +99,14 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: figulusproject/${{ matrix.image }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=raw,value=latest
+          tags: ${{ matrix.tags }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.target }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

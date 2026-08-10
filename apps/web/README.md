@@ -33,9 +33,22 @@ failures, immediate skip for permanent ones, and per-domain cooldowns.
 [Valkey](https://valkey.io) is the recommended server to point it at, not
 Redis itself - see the [CLI README](../cli#advanced-queuing-optional) for
 why and for the full behavior, which is identical here, just server-wide
-instead of per-run. Requires installing the optional `bullmq`/`ioredis`
-peer dependencies yourself (`npm install bullmq ioredis`) - not included in
-the published Docker image.
+instead of per-run.
+
+The default `figulusproject/zod-crawler-web` Docker image already bundles
+`bullmq`/`ioredis` and a background Valkey server, with `REDIS_URL` preset
+to it, so `docker run --rm -p 3000:3000 figulusproject/zod-crawler-web`
+gets all of the above with no setup. That Valkey instance isn't persisted
+across container restarts, which only matters if a crawl is still queued
+when the container stops. For a production deployment backed by your own,
+persistent Redis/Valkey instance, use the smaller
+`figulusproject/zod-crawler-web:slim` tag instead and set `REDIS_URL`
+yourself - it has no bundled Valkey and falls back to the default
+sequential queue if `REDIS_URL` is unset.
+
+Outside Docker (`npm run build && npm start`), install the optional
+`bullmq`/`ioredis` peer dependencies yourself (`npm install bullmq
+ioredis`) before setting `REDIS_URL`.
 
 ## How it works
 
