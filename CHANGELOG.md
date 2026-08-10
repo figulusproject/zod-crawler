@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- `@zod-crawler/core`: `fetchAndCacheSamples` accepts an optional `redisUrl`, switching fetches to a [BullMQ](https://bullmq.io)-backed queue instead of the plain sequential one. Adds retries with exponential backoff for transient failures (429, 5xx, network errors), immediate skip-without-retry for permanent ones (any other 4xx, e.g. 404/403), a `concurrency` option, and per-domain cooldowns (each host paced independently instead of sharing one global clock, when ids are full URLs spanning multiple hosts). `bullmq`/`ioredis` are optional peer dependencies, dynamically imported only when `redisUrl` is set, so the default queue never requires them.
+- `@zod-crawler/cli`: `--redis-url`/`REDIS_URL` and `--concurrency` flags, wiring the above into the CLI. Requires `npm install bullmq ioredis` yourself; not included in the published Docker image. The flag/env var name the wire protocol BullMQ/ioredis speak, not a recommendation to run Redis itself - [Valkey](https://valkey.io) is the recommended, drop-in-compatible server (see the CLI README's "Advanced queuing" section for why).
+- `@zod-crawler/web`: a `REDIS_URL` environment variable (alongside the existing `PORT`) switches every crawl on that server instance to the same BullMQ-backed queue. Same optional-install/Docker caveat and Valkey recommendation as the CLI.
+
 ## [1.0.1] - 2026-08-09
 
 ### Changed

@@ -6,6 +6,7 @@ import { EventEmitter } from "node:events";
 import prettier from "prettier";
 import {
   createUrlFetcher,
+  DEFAULT_CONCURRENCY,
   fetchAndCacheSamples,
   findCrawlCandidates,
   inferSchema,
@@ -22,6 +23,9 @@ import type { ResolvedCrawlRequest } from "./requestSchema.js";
 
 // Long enough for a client reconnecting after a page refresh to still get the result, short enough not to leak memory for jobs nobody reconnects to.
 const JOB_RETENTION_MS = 60_000;
+
+// Deployment-level, not per-request: whoever runs the server opts every crawl into the BullMQ-backed queue by setting this, the same way PORT configures the server itself.
+const REDIS_URL = process.env.REDIS_URL;
 
 export interface CrawlJob {
   id: string;
@@ -63,6 +67,8 @@ async function runJob(
       delayMs: request.delayMs,
       fetchOne: createUrlFetcher(request.urlTemplate),
       continueOnError: !request.stopOnError,
+      redisUrl: REDIS_URL,
+      concurrency: REDIS_URL ? DEFAULT_CONCURRENCY : undefined,
       onProgress: (event: CrawlProgressEvent) => {
         if (event.status === "error" && event.error !== undefined) {
           fetchFailures.push({ id: event.id, error: event.error });

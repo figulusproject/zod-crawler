@@ -26,8 +26,22 @@
     "zod": "^4.4.3",
     "zod-transformers": "^1.0.0"
   },
+  "peerDependencies": {
+    "bullmq": "^6.0.0",
+    "ioredis": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "bullmq": {
+      "optional": true
+    },
+    "ioredis": {
+      "optional": true
+    }
+  },
   "devDependencies": {
-    "@types/node": "^22"
+    "@types/node": "^22",
+    "bullmq": "^6.0.0",
+    "ioredis": "^6.0.0"
   },
   "repository": {
     "type": "git",

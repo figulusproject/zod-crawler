@@ -34,6 +34,7 @@ export {
   SCHEMA_NAME_PATTERN,
   DEFAULT_DELAY_MS,
   DEFAULT_SCHEMA_NAME,
+  DEFAULT_CONCURRENCY,
 } from "./crawlSettingsDefaults.js";
 
 export type {
@@ -45,4 +46,4 @@ export {
   hasCachedSample,
 } from "./fetchAndCacheSamples.js";
 
-export { createUrlFetcher } from "./urlFetcher.js";
+export { createUrlFetcher, FetchHttpError } from "./urlFetcher.js";

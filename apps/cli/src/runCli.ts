@@ -46,6 +46,8 @@ export async function runCli(argv: string[]): Promise<number> {
       fetchOne: createUrlFetcher(settings.urlTemplate),
       onProgress: logFetchProgress,
       continueOnError: !settings.stopOnError,
+      redisUrl: settings.redisUrl,
+      concurrency: settings.concurrency,
     });
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));

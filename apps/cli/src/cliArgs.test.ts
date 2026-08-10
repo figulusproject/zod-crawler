@@ -169,6 +169,120 @@ describe("parseCliArgs", () => {
     expect(result.ok).toBe(false);
   });
 
+  describe("--redis-url / --concurrency", () => {
+    const originalRedisUrl = process.env.REDIS_URL;
+
+    afterEach(() => {
+      if (originalRedisUrl === undefined) delete process.env.REDIS_URL;
+      else process.env.REDIS_URL = originalRedisUrl;
+    });
+
+    it("leaves redisUrl/concurrency undefined by default", () => {
+      delete process.env.REDIS_URL;
+      const result = parseCliArgs(["--ids", "a", "--output", "/tmp/out"]);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.settings.redisUrl).toBeUndefined();
+        expect(result.settings.concurrency).toBeUndefined();
+      }
+    });
+
+    it("sets redisUrl from --redis-url, defaulting concurrency to 1", () => {
+      delete process.env.REDIS_URL;
+      const result = parseCliArgs([
+        "--ids",
+        "a",
+        "--output",
+        "/tmp/out",
+        "--redis-url",
+        "redis://localhost:6379",
+      ]);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.settings.redisUrl).toBe("redis://localhost:6379");
+        expect(result.settings.concurrency).toBe(1);
+      }
+    });
+
+    it("falls back to the REDIS_URL environment variable", () => {
+      process.env.REDIS_URL = "redis://env-host:6379";
+      const result = parseCliArgs(["--ids", "a", "--output", "/tmp/out"]);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.settings.redisUrl).toBe("redis://env-host:6379");
+      }
+    });
+
+    it("prefers --redis-url over the REDIS_URL environment variable", () => {
+      process.env.REDIS_URL = "redis://env-host:6379";
+      const result = parseCliArgs([
+        "--ids",
+        "a",
+        "--output",
+        "/tmp/out",
+        "--redis-url",
+        "redis://flag-host:6379",
+      ]);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.settings.redisUrl).toBe("redis://flag-host:6379");
+      }
+    });
+
+    it("applies --concurrency when a Redis URL is configured", () => {
+      const result = parseCliArgs([
+        "--ids",
+        "a",
+        "--output",
+        "/tmp/out",
+        "--redis-url",
+        "redis://localhost:6379",
+        "--concurrency",
+        "4",
+      ]);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.settings.concurrency).toBe(4);
+    });
+
+    it("rejects --concurrency without a Redis URL (flag or env)", () => {
+      delete process.env.REDIS_URL;
+      const result = parseCliArgs([
+        "--ids",
+        "a",
+        "--output",
+        "/tmp/out",
+        "--concurrency",
+        "4",
+      ]);
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.message).toMatch(/--concurrency/);
+    });
+
+    it("rejects a non-integer or non-positive --concurrency", () => {
+      for (const bad of ["abc", "0", "-1", "1.5"]) {
+        const result = parseCliArgs([
+          "--ids",
+          "a",
+          "--output",
+          "/tmp/out",
+          "--redis-url",
+          "redis://localhost:6379",
+          "--concurrency",
+          bad,
+        ]);
+        expect(result.ok, `--concurrency ${bad} should be rejected`).toBe(
+          false,
+        );
+      }
+    });
+  });
+
   describe("--ids-file", () => {
     let dir: string;
 
