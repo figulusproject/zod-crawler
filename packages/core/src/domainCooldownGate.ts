@@ -33,7 +33,8 @@ export function createDomainCooldownGate(
 
     const creation = (async (): Promise<DomainQueueEntry> => {
       const { Queue, QueueEvents, Worker } = await bullmqPromise;
-      const queueName = `zod-crawler-cooldown-${domain}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      // Deterministic per domain (no per-call suffix) so concurrent crawls hitting the same domain, in this process or another, share one Redis-enforced rate limiter.
+      const queueName = `zod-crawler-cooldown-${domain}`;
 
       const queue = new Queue(queueName, { connection });
       const worker = new Worker(queueName, async () => null, {
@@ -73,8 +74,8 @@ export function createDomainCooldownGate(
     await Promise.all(
       [...domainQueues.values()].map(async (entryPromise) => {
         const entry = await entryPromise;
+        // The queue name is shared by domain, not by crawl, so closing here must not delete state another concurrent crawl still depends on.
         await entry.worker.close();
-        await entry.queue.obliterate({ force: true }).catch(() => {});
         await entry.queue.close();
         await entry.events.close();
       }),
