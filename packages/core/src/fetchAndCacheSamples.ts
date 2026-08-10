@@ -26,6 +26,8 @@ export interface FetchAndCacheSamplesOptions {
   redisUrl?: string;
   // Only meaningful alongside redisUrl; how many fetches the BullMQ worker runs at once.
   concurrency?: number;
+  // Only meaningful alongside redisUrl; derives a deterministic queue name for reconnecting after a restart.
+  crawlId?: string;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -42,6 +44,7 @@ export async function fetchAndCacheSamples({
   continueOnError = true,
   redisUrl,
   concurrency,
+  crawlId,
 }: FetchAndCacheSamplesOptions): Promise<Record<string, JsonValue>> {
   const cacheDir = await ensureCacheDir(outputDir);
 
@@ -58,6 +61,7 @@ export async function fetchAndCacheSamples({
       continueOnError,
       onProgress,
       samples,
+      crawlId,
     });
     return samples;
   }

@@ -6,6 +6,7 @@ import {
   bigintSafeStringify,
   cacheFilePath,
   fileExists,
+  hashId,
   recordManifestEntry,
 } from "./sampleCache.js";
 import { parseRedisUrl } from "./redisConnection.js";
@@ -24,6 +25,8 @@ export interface RunBullmqFetchQueueOptions {
   onProgress?: (event: FetchProgressEvent) => void;
   // Populated in place with every successfully fetched (or cache-hit) sample.
   samples: Record<string, JsonValue>;
+  // Derives a deterministic queue name so a restarted process can reconnect to it; omitted callers get a random one.
+  crawlId?: string;
 }
 
 interface JobData {
@@ -65,6 +68,7 @@ export async function runBullmqFetchQueue({
   continueOnError,
   onProgress,
   samples,
+  crawlId,
 }: RunBullmqFetchQueueOptions): Promise<void> {
   const total = ids.length;
 
@@ -87,7 +91,9 @@ export async function runBullmqFetchQueue({
   const connection = parseRedisUrl(redisUrl);
   const cooldownGate = createDomainCooldownGate(connection, cooldownMs);
 
-  const queueName = `zod-crawler-fetch-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const queueName = crawlId
+    ? `zod-crawler-fetch-${crawlId}`
+    : `zod-crawler-fetch-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const queue = new Queue<JobData, unknown, string>(queueName, { connection });
 
   async function writeSuccess(id: string, data: unknown): Promise<void> {
@@ -184,6 +190,8 @@ export async function runBullmqFetchQueue({
     Promise.all(
       toFetch.map((data) =>
         queue.add("fetch", data, {
+          // Dedup key so a resumed run can re-add every not-yet-cached id without double-enqueuing one still in flight; hashed since BullMQ rejects raw ids containing ":".
+          jobId: hashId(data.id),
           attempts: RETRY_ATTEMPTS,
           backoff: { type: "exponential", delay: RETRY_BACKOFF_MS },
           removeOnComplete: true,

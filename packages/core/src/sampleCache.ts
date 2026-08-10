@@ -11,10 +11,13 @@ export function bigintSafeStringify(data: unknown): string {
   );
 }
 
-// ids can be arbitrary strings (including full URLs), not safe as filenames as-is; a content hash sidesteps that.
+// ids can be arbitrary strings (including full URLs), unsafe as filenames or BullMQ job ids as-is; a content hash sidesteps both.
+export function hashId(id: string): string {
+  return createHash("sha256").update(id).digest("hex");
+}
+
 export function cacheFilePath(cacheDir: string, id: string): string {
-  const hash = createHash("sha256").update(id).digest("hex");
-  return path.join(cacheDir, `${hash}.json`);
+  return path.join(cacheDir, `${hashId(id)}.json`);
 }
 
 export async function fileExists(filePath: string): Promise<boolean> {

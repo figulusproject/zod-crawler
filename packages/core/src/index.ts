@@ -47,3 +47,10 @@ export {
 } from "./fetchAndCacheSamples.js";
 
 export { createUrlFetcher, FetchHttpError } from "./urlFetcher.js";
+
+export type { ActiveCrawlEntry } from "./crawlRegistry.js";
+export {
+  registerActiveCrawl,
+  unregisterActiveCrawl,
+  listActiveCrawls,
+} from "./crawlRegistry.js";

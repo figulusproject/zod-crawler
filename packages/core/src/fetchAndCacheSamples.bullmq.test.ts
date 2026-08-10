@@ -1,8 +1,11 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { Queue } from "bullmq";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchAndCacheSamples } from "./fetchAndCacheSamples.js";
+import { parseRedisUrl } from "./redisConnection.js";
+import { hashId } from "./sampleCache.js";
 import { FetchHttpError } from "./urlFetcher.js";
 
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
@@ -159,5 +162,33 @@ describe("fetchAndCacheSamples (redisUrl / BullMQ queue)", () => {
     // a.example.com's two ids are paced 300ms apart; b.example.com's one id runs in parallel, unaffected.
     expect(elapsed).toBeGreaterThanOrEqual(300 - 30);
     expect(elapsed).toBeLessThan(300 * 2);
+  });
+
+  it("does not double-enqueue an id already waiting under the same crawlId's queue", async () => {
+    // Checked directly against BullMQ, not through fetchAndCacheSamples: a live worker can complete and remove the pre-seeded job before a second add() call observes it, a harmless race that made call-count assertions flaky.
+    const crawlId = `test-crawl-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const queueName = `zod-crawler-fetch-${crawlId}`;
+    const connection = parseRedisUrl(REDIS_URL);
+    const queue = new Queue(queueName, { connection });
+
+    // A URL id exercises the hash: BullMQ rejects ":" in raw job ids.
+    const id = "https://example.com/x";
+    const jobOptions = {
+      jobId: hashId(id),
+      removeOnComplete: true,
+      removeOnFail: true,
+    };
+
+    try {
+      const first = await queue.add("fetch", { id, index: 0 }, jobOptions);
+      const second = await queue.add("fetch", { id, index: 0 }, jobOptions);
+
+      expect(second.id).toBe(first.id);
+      const counts = await queue.getJobCounts("waiting", "active", "delayed");
+      expect(counts.waiting + counts.active + counts.delayed).toBe(1);
+    } finally {
+      await queue.obliterate({ force: true }).catch(() => {});
+      await queue.close();
+    }
   });
 });

@@ -10,12 +10,21 @@
 #     persisted across container restarts.
 #   runtime-external - no bundled Valkey, smaller image. Point REDIS_URL at
 #     your own Redis/Valkey instance for the same queuing behavior, with
-#     data that survives this container restarting. Falls back to the
-#     default sequential queue if REDIS_URL is unset.
+#     data that survives this container restarting - the server also
+#     resumes any crawl still running when it last stopped. Falls back to
+#     the default sequential queue if REDIS_URL is unset.
 #
 # Build:
 #   docker build -f apps/web/Dockerfile -t zod-crawler-web .
 #   docker build -f apps/web/Dockerfile --target runtime-external -t zod-crawler-web:slim .
+#
+# Run against your own persistent Redis/Valkey, with a volume for the
+# sample cache too so a resumed crawl doesn't have to re-fetch everything
+# (see apps/web/README.md's "Advanced queuing" section):
+#   docker run --rm -p 3000:3000 \
+#     -v "$(pwd)/cache:/cache" -e CACHE_DIR=/cache \
+#     -e REDIS_URL=redis://your-valkey-host:6379 \
+#     zod-crawler-web:slim
 
 FROM node:22-alpine AS builder
 WORKDIR /app
