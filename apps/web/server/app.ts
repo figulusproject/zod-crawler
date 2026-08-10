@@ -45,6 +45,11 @@ export function createApp(): Express {
       Connection: "keep-alive",
     });
 
+    // Catches a reconnecting client up on every id's last known status - otherwise ids fetched before this connection opened (e.g. before a page refresh) would sit at "pending" forever.
+    for (const event of job.progress.values()) {
+      sendEvent(res, "progress", event);
+    }
+
     // A fast run can finish before the SSE request lands, so serve the stored terminal result instead of subscribing to events that already fired.
     if (job.status === "done" && job.result) {
       sendEvent(res, "complete", job.result);

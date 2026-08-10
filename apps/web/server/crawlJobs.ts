@@ -42,6 +42,8 @@ export interface CrawlJob {
   status: "running" | "done" | "error";
   request: ResolvedCrawlRequest;
   startedAt: Date;
+  // Keyed by index, not appended, so a client reconnecting mid-crawl (e.g. after a page refresh) can be caught up on every id's last known status, not just whatever fires next.
+  progress: Map<number, CrawlProgressEvent>;
   result?: CrawlCompleteEvent;
   error?: CrawlErrorEvent;
 }
@@ -55,6 +57,7 @@ function beginJob(id: string, request: ResolvedCrawlRequest): string {
     status: "running",
     request,
     startedAt: new Date(),
+    progress: new Map(),
   };
   jobs.set(job.id, job);
   void runJob(job, request);
@@ -143,6 +146,7 @@ async function runJob(
       concurrency: REDIS_URL ? DEFAULT_CONCURRENCY : undefined,
       crawlId: job.id,
       onProgress: (event: CrawlProgressEvent) => {
+        job.progress.set(event.index, event);
         if (event.status === "error" && event.error !== undefined) {
           fetchFailures.push({ id: event.id, error: event.error });
         }
