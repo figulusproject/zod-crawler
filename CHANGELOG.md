@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- `@zod-crawler/core`: `fetchAndCacheSamples` accepts an optional `redisUrl`, switching fetches to a [BullMQ](https://bullmq.io)-backed queue instead of the plain sequential one. Adds retries with exponential backoff for transient failures (429, 5xx, network errors), immediate skip-without-retry for permanent ones (any other 4xx, e.g. 404/403), a `concurrency` option, and per-domain cooldowns (each host paced independently instead of sharing one global clock, when ids are full URLs spanning multiple hosts). `bullmq`/`ioredis` are optional peer dependencies, dynamically imported only when `redisUrl` is set, so the default queue never requires them.
+- `@zod-crawler/cli`: `--redis-url`/`REDIS_URL` and `--concurrency` flags, wiring the above into the CLI. Requires `npm install bullmq ioredis` yourself - not included in the published Docker image. The flag/env var name the wire protocol BullMQ/ioredis speak, not a recommendation to run Redis itself - [Valkey](https://valkey.io) is the recommended, drop-in-compatible server (see the CLI README's "Advanced queuing" section for why).
+- `@zod-crawler/web`: a `REDIS_URL` environment variable (alongside the existing `PORT`) switches every crawl on that server instance to the same BullMQ-backed queue. Same optional-install/Valkey recommendation as the CLI.
+- Docker images: both `figulusproject/zod-crawler-web` and `figulusproject/zod-crawler-cli` now publish two tags each. The default (`latest`, `<version>`) bundles `bullmq`/`ioredis` plus a background Valkey server with `REDIS_URL` preset to it, so retries/concurrency/per-domain cooldowns work out of the box with no external setup - its queue data isn't persisted across container restarts. The `slim`-tagged variant is the same image without the bundled Valkey (smaller), for pointing `REDIS_URL`/`--redis-url` at your own persistent instance instead.
+- `@zod-crawler/web`: with `REDIS_URL` set, the server now survives a restart mid-crawl. Each crawl registers itself in Redis and gets a BullMQ queue name derived from its own job id instead of a random one, so on startup the server reconnects to any queue still in flight from before it last stopped rather than losing that work. A new `CACHE_DIR` environment variable makes the on-disk sample cache durable across restarts too (point it at a named or mounted volume), so a resumed crawl only re-fetches whatever was still outstanding; without it, resume still reconnects the queue but re-fetches everything, since the default cache directory doesn't survive a container restart on its own.
+
 ## [1.0.1] - 2026-08-09
 
 ### Changed

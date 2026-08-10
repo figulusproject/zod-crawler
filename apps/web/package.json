@@ -20,6 +20,18 @@
     "prettier": "^3.8.3",
     "zod": "^4.4.3"
   },
+  "peerDependencies": {
+    "bullmq": "^6.0.0",
+    "ioredis": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "bullmq": {
+      "optional": true
+    },
+    "ioredis": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@eslint/js": "^10",
     "@fontsource-variable/figtree": "^5.3.0",

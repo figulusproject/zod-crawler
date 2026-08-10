@@ -6,6 +6,7 @@ import {
   SCHEMA_NAME_PATTERN,
   DEFAULT_DELAY_MS,
   DEFAULT_SCHEMA_NAME,
+  DEFAULT_CONCURRENCY,
 } from "@zod-crawler/core";
 
 export interface CliSettings {
@@ -17,6 +18,8 @@ export interface CliSettings {
   emitCrawlCandidates: boolean;
   useZodTransformers: boolean;
   stopOnError: boolean;
+  redisUrl: string | undefined;
+  concurrency: number | undefined;
 }
 
 export type ParseCliArgsResult =
@@ -25,7 +28,8 @@ export type ParseCliArgsResult =
 export const USAGE =
   "Usage: zod-crawler (--ids <id1,id2,...> | --ids-file <path>) --output <dir> " +
   "[--url-template <template containing {id}>] [--delay <ms>] [--schema-name <name>] " +
-  "[--emit-crawl-candidates] [--zod-transformers] [--stop-on-error]";
+  "[--emit-crawl-candidates] [--zod-transformers] [--stop-on-error] " +
+  "[--redis-url <url>] [--concurrency <n>]";
 
 const cli = defineCli({
   flags: {
@@ -46,6 +50,10 @@ const cli = defineCli({
     stopOnError: {
       schema: z.boolean().default(false),
       long: "stop-on-error",
+    },
+    redisUrl: { schema: z.string().optional(), long: "redis-url" },
+    concurrency: {
+      schema: numberString({ integer: true, min: 1 }).optional(),
     },
   },
   usage: USAGE,
@@ -118,6 +126,20 @@ const settingsSchema = cli.flagsSchema.transform((raw, ctx): CliSettings => {
     return z.NEVER;
   }
 
+  const redisUrl = raw.redisUrl ?? process.env.REDIS_URL;
+  if (raw.concurrency !== undefined && redisUrl === undefined) {
+    ctx.addIssue({
+      code: "custom",
+      message:
+        "--concurrency requires --redis-url (or a REDIS_URL environment variable) - it only applies to the BullMQ-backed queue.",
+    });
+    return z.NEVER;
+  }
+  const concurrency =
+    redisUrl !== undefined
+      ? (raw.concurrency ?? DEFAULT_CONCURRENCY)
+      : undefined;
+
   return {
     ids,
     urlTemplate: raw.urlTemplate,
@@ -127,6 +149,8 @@ const settingsSchema = cli.flagsSchema.transform((raw, ctx): CliSettings => {
     emitCrawlCandidates: raw.emitCrawlCandidates,
     useZodTransformers: raw.zodTransformers,
     stopOnError: raw.stopOnError,
+    redisUrl,
+    concurrency,
   };
 });
 
