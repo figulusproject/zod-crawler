@@ -16,6 +16,14 @@ export interface CrawlRequest {
 export interface StartCrawlResponse {
   jobId: string;
 }
+
+export interface ActiveCrawlSummary {
+  jobId: string;
+  status: "running" | "done" | "error";
+  startedAt: string;
+  request: Required<Pick<CrawlRequest, "ids" | "schemaName" | "delayMs">> &
+    Pick<CrawlRequest, "urlTemplate">;
+}
 export type CrawlProgressEvent = FetchProgressEvent;
 
 export interface ValidationFailure {

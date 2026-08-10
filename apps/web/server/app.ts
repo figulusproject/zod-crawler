@@ -2,7 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import express, { type Express, type Request, type Response } from "express";
 import { crawlRequestSchema } from "./requestSchema.js";
-import { getJob, startCrawlJob } from "./crawlJobs.js";
+import { getJob, listJobs, startCrawlJob } from "./crawlJobs.js";
 import type { StartCrawlResponse } from "../shared/events.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -26,6 +26,10 @@ export function createApp(): Express {
     const jobId = startCrawlJob(parsed.data);
     const body: StartCrawlResponse = { jobId };
     res.status(202).json(body);
+  });
+
+  app.get("/api/crawls", (_req: Request, res: Response) => {
+    res.json(listJobs());
   });
 
   app.get<{ jobId: string }>("/api/crawl/:jobId/events", (req, res) => {
