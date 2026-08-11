@@ -35,7 +35,10 @@ export {
   crawlCandidatesToJson,
   crawlCandidatesToTxt,
   crawlCandidatesToYaml,
+  CRAWL_CANDIDATES_FORMATS,
+  crawlCandidatesFormatters,
 } from "./crawlCandidateFormats.js";
+export type { CrawlCandidatesFormat } from "./crawlCandidateFormats.js";
 
 export {
   SCHEMA_NAME_PATTERN,

@@ -53,3 +53,17 @@ export function crawlCandidatesToCsv(fields: CrawlCandidateField[]): string {
   );
   return [header, ...rows].join("\n");
 }
+
+export const CRAWL_CANDIDATES_FORMATS = ["txt", "json", "yaml", "csv"] as const;
+
+export type CrawlCandidatesFormat = (typeof CRAWL_CANDIDATES_FORMATS)[number];
+
+export const crawlCandidatesFormatters: Record<
+  CrawlCandidatesFormat,
+  { extension: string; toText: (fields: CrawlCandidateField[]) => string }
+> = {
+  txt: { extension: "txt", toText: crawlCandidatesToTxt },
+  json: { extension: "json", toText: crawlCandidatesToJson },
+  yaml: { extension: "yaml", toText: crawlCandidatesToYaml },
+  csv: { extension: "csv", toText: crawlCandidatesToCsv },
+};

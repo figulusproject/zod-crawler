@@ -15,6 +15,7 @@ describe("parseCliArgs", () => {
       expect(result.settings.schemaName).toBe("InferredSchema");
       expect(result.settings.urlTemplate).toBeUndefined();
       expect(result.settings.emitCrawlCandidates).toBe(false);
+      expect(result.settings.crawlCandidatesFormat).toBe("txt");
       expect(result.settings.useZodTransformers).toBe(false);
       expect(result.settings.stopOnError).toBe(false);
     }
@@ -32,7 +33,57 @@ describe("parseCliArgs", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.settings.emitCrawlCandidates).toBe(true);
+      expect(result.settings.crawlCandidatesFormat).toBe("txt");
     }
+  });
+
+  describe("--crawl-candidates-format", () => {
+    it("sets crawlCandidatesFormat when combined with --emit-crawl-candidates", () => {
+      const result = parseCliArgs([
+        "--ids",
+        "a",
+        "--output",
+        "/tmp/out",
+        "--emit-crawl-candidates",
+        "--crawl-candidates-format",
+        "yaml",
+      ]);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.settings.crawlCandidatesFormat).toBe("yaml");
+      }
+    });
+
+    it("rejects --crawl-candidates-format without --emit-crawl-candidates", () => {
+      const result = parseCliArgs([
+        "--ids",
+        "a",
+        "--output",
+        "/tmp/out",
+        "--crawl-candidates-format",
+        "yaml",
+      ]);
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.message).toMatch(/--crawl-candidates-format/);
+      }
+    });
+
+    it("rejects an unsupported format", () => {
+      const result = parseCliArgs([
+        "--ids",
+        "a",
+        "--output",
+        "/tmp/out",
+        "--emit-crawl-candidates",
+        "--crawl-candidates-format",
+        "xml",
+      ]);
+
+      expect(result.ok).toBe(false);
+    });
   });
 
   it("sets useZodTransformers when --zod-transformers is passed", () => {
