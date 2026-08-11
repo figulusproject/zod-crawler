@@ -31,6 +31,12 @@ export type { CrawlCandidateField } from "./findCrawlCandidates.js";
 export { findCrawlCandidates } from "./findCrawlCandidates.js";
 
 export {
+  crawlCandidatesToCsv,
+  crawlCandidatesToJson,
+  crawlCandidatesToYaml,
+} from "./crawlCandidateFormats.js";
+
+export {
   SCHEMA_NAME_PATTERN,
   DEFAULT_DELAY_MS,
   DEFAULT_SCHEMA_NAME,

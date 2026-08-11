@@ -15,7 +15,7 @@ import {
   validateSamples,
   type FetchProgressEvent,
 } from "@zod-crawler/core";
-import { parseCliArgs, USAGE, type CliSettings } from "./cliArgs.js";
+import { parseCliArgs, usage, type CliSettings } from "./cliArgs.js";
 
 // Prints fetch/cache status lines to stderr; the web app renders the same FetchProgressEvent stream as SSE messages instead.
 function logFetchProgress(event: FetchProgressEvent): void {
@@ -35,7 +35,7 @@ export async function runCli(argv: string[]): Promise<number> {
   const parsed = parseCliArgs(argv);
   if (!parsed.ok) {
     console.error(parsed.message);
-    console.error(USAGE);
+    console.error(usage);
     return 1;
   }
   const { settings } = parsed;

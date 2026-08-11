@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./crawlCandidateFormats": {
+      "types": "./dist/crawlCandidateFormats.d.ts",
+      "import": "./dist/crawlCandidateFormats.js"
     }
   },
   "files": [
