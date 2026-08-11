@@ -1,3 +1,4 @@
+import { rm } from "node:fs/promises";
 import {
   afterAll,
   afterEach,
@@ -73,8 +74,12 @@ describe("crawlJobs (resume)", () => {
     });
     vi.stubGlobal("fetch", fetchOne);
 
-    // "Before the crash": id "a" was already fetched and cached on disk.
+    // resolveJobCacheBaseDir(jobId) is deterministic, so a prior run's cache under this fixed jobId
+    // would otherwise make id "a" look pre-cached before this test seeds it itself.
     const outputDir = resolveJobCacheBaseDir(jobId);
+    await rm(outputDir, { recursive: true, force: true });
+
+    // "Before the crash": id "a" was already fetched and cached on disk.
     await fetchAndCacheSamples({
       ids: ["a"],
       outputDir,
@@ -106,6 +111,8 @@ describe("crawlJobs (resume)", () => {
       const entries = await listActiveCrawls(REDIS_URL);
       expect(entries.some((entry) => entry.jobId === jobId)).toBe(false);
     });
+
+    await rm(outputDir, { recursive: true, force: true });
   });
 
   it("discards a registry entry whose payload no longer passes validation", async () => {
