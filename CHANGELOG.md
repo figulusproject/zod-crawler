@@ -17,10 +17,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `@zod-crawler/cli`: a `--detach`/`-d` flag runs the crawl as a background process and returns immediately, printing its pid, output directory, and a log file path (`<output>/zod-crawler.log`) capturing everything it would otherwise print to the terminal. There's no subcommand yet to check on a detached run's status - the pid/log/output directory printed at start are the only way to check on it for now.
 - `@zod-crawler/core`: `crawlCandidatesToJson`/`crawlCandidatesToYaml`/`crawlCandidatesToCsv`, converting a `CrawlCandidateField[]` into each of those formats.
 - `@zod-crawler/web`: the crawl candidates list gains global and per-field select-all/select-none controls, and a save-to-file button (JSON/YAML/CSV) for the current selection, instead of only being re-feedable back into the ids field.
+- Docs: a docsify-based documentation site under `docs/`, published at https://zodcrawler.figulus.dev, with dedicated pages for CLI/Web/Core usage, the full flag reference, crawling further, advanced queuing, and repo development.
 
 ### Changed
 
 - `@zod-crawler/cli`: upgraded to `zod-cli-flags@1.0.2`. The `Usage:` line printed on invalid arguments is now generated from the flag declarations instead of a separately hand-maintained string, so it can't drift out of sync with the actual flags - it can't yet express "exactly one of `--ids`/`--ids-file`" as a group like the old string did ([zod-cli-flags#7](https://github.com/figulusproject/zod-cli-flags/issues/7)).
+- `@zod-crawler/cli`, `@zod-crawler/web`, `@zod-crawler/core`, and the root README now link out to the docs site above for flags, Docker/advanced-queuing setup, and other details instead of duplicating them, so each README stays brief.
 
 ## [1.0.1] - 2026-08-09
 

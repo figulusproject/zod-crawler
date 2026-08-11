@@ -14,9 +14,11 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "sync-versions": "tsx scripts/sync-versions.ts"
+    "sync-versions": "tsx scripts/sync-versions.ts",
+    "docs": "docsify serve docs"
   },
   "devDependencies": {
+    "docsify-cli": "^5.0.0",
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "tsx": "^4",
