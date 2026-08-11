@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { parseIds } from "@/lib/parseIds";
-import type { FormState } from "@/lib/formState";
+import { MIN_DELAY_MS, type FormState } from "@/lib/formState";
 
 interface CrawlFormProps {
   form: FormState;
@@ -68,7 +68,7 @@ export function CrawlForm({
           <Input
             id="delayMs"
             type="number"
-            min={0}
+            min={MIN_DELAY_MS}
             step={1}
             value={form.delayMs}
             onChange={(event) => onChange({ delayMs: event.target.value })}

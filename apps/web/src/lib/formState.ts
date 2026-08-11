@@ -8,7 +8,9 @@ export interface FormState {
   stopOnError: boolean;
 }
 
-// Not imported from @zod-crawler/core, whose barrel also drags in Node-only I/O modules Vite can't bundle; keep in sync with crawlSettingsDefaults.ts by hand.
+// Not imported from @zod-crawler/core, whose barrel also drags in Node-only I/O modules Vite can't bundle. Keep in sync with crawlSettingsDefaults.ts by hand.
+export const MIN_DELAY_MS = 100;
+
 export const DEFAULT_FORM_STATE: FormState = {
   idsText: "",
   urlTemplate: "",
