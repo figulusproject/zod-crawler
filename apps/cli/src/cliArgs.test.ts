@@ -65,6 +65,24 @@ describe("parseCliArgs", () => {
     }
   });
 
+  it("leaves detach false by default", () => {
+    const result = parseCliArgs(["--ids", "a", "--output", "/tmp/out"]);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.settings.detach).toBe(false);
+    }
+  });
+
+  it("sets detach when --detach or its -d alias is passed", () => {
+    for (const flag of ["--detach", "-d"]) {
+      const result = parseCliArgs(["--ids", "a", "--output", "/tmp/out", flag]);
+
+      expect(result.ok, `${flag} should parse`).toBe(true);
+      if (result.ok) expect(result.settings.detach).toBe(true);
+    }
+  });
+
   it("applies --url-template, --delay, and --schema-name overrides", () => {
     const result = parseCliArgs([
       "--ids",
