@@ -26,20 +26,32 @@ export interface CliSettings {
 export type ParseCliArgsResult =
   { ok: true; settings: CliSettings } | { ok: false; message: string };
 
-export const USAGE =
-  "Usage: zod-crawler (--ids <id1,id2,...> | --ids-file <path>) --output <dir> " +
-  "[--url-template <template containing {id}>] [--delay <ms>] [--schema-name <name>] " +
-  "[--emit-crawl-candidates] [--zod-transformers] [--stop-on-error] " +
-  "[--redis-url <url>] [--concurrency <n>] [--detach|-d]";
-
 const cli = defineCli({
+  // The auto-generated usage below can't express "exactly one of --ids/--ids-file" as a group the
+  // way the old hand-written string did - zod-cli-flags has no flag-grouping syntax yet
+  // (https://github.com/figulusproject/zod-cli-flags/issues/7).
   flags: {
-    ids: { schema: z.string().optional() },
-    idsFile: { schema: z.string().optional(), long: "ids-file" },
-    urlTemplate: { schema: z.string().optional(), long: "url-template" },
-    output: { schema: z.string().optional() },
-    delay: { schema: numberString({ integer: true, min: 0 }).optional() },
-    schemaName: { schema: z.string().optional(), long: "schema-name" },
+    ids: { schema: z.string().optional(), placeholder: "id1,id2,..." },
+    idsFile: {
+      schema: z.string().optional(),
+      long: "ids-file",
+      placeholder: "path",
+    },
+    urlTemplate: {
+      schema: z.string().optional(),
+      long: "url-template",
+      placeholder: "template containing {id}",
+    },
+    output: { schema: z.string().optional(), placeholder: "dir" },
+    delay: {
+      schema: numberString({ integer: true, min: 0 }).optional(),
+      placeholder: "ms",
+    },
+    schemaName: {
+      schema: z.string().optional(),
+      long: "schema-name",
+      placeholder: "name",
+    },
     emitCrawlCandidates: {
       schema: z.boolean().default(false),
       long: "emit-crawl-candidates",
@@ -52,14 +64,20 @@ const cli = defineCli({
       schema: z.boolean().default(false),
       long: "stop-on-error",
     },
-    redisUrl: { schema: z.string().optional(), long: "redis-url" },
+    redisUrl: {
+      schema: z.string().optional(),
+      long: "redis-url",
+      placeholder: "url",
+    },
     concurrency: {
       schema: numberString({ integer: true, min: 1 }).optional(),
+      placeholder: "n",
     },
     detach: { schema: z.boolean().default(false), short: "d" },
   },
-  usage: USAGE,
 });
+
+export const usage = cli.usage;
 
 const settingsSchema = cli.flagsSchema.transform((raw, ctx): CliSettings => {
   if ((raw.ids === undefined) === (raw.idsFile === undefined)) {
