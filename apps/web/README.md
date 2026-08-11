@@ -5,7 +5,7 @@
 
 > _Everyone has the right to resist occupation._
 
-A Docker-deployed single-page UI for the same crawl pipeline behind [`zod-crawler`](../cli). Submit ids, a URL template, and a few flags, and watch the fetch/infer/validate run live instead of reading it off a terminal.
+A Docker-deployed single-page UI for the same crawl pipeline behind [`zod-crawler`](https://zodcrawler.figulus.dev/#/cli). Submit ids, a URL template, and a few flags, and watch the fetch/infer/validate run live instead of reading it off a terminal.
 
 ## Usage
 
@@ -15,9 +15,10 @@ docker run --rm -p 3000:3000 figulusproject/zod-crawler-web
 
 Then open `http://localhost:3000`. Fill in the ids (or paste a list), a URL template like `https://example.com/items/{id}`, and submit. Progress streams in per-id as each sample is fetched, followed by the generated schema, the validation summary, and any crawl candidates found along the way, which you can review and re-feed straight into another run.
 
-See the [docs site](/docs/web.md) for local development, advanced
-queuing via `REDIS_URL`, and surviving a server restart.
+See the [docs site](https://zodcrawler.figulus.dev/#/web) for local
+development, advanced queuing via `REDIS_URL`, and surviving a server
+restart.
 
 ## How it works
 
-The server wraps [`@zod-crawler/core`](../../packages/core) the same way the CLI does: fetching and caching each sample, merging shapes to infer a Zod schema, and validating every cached sample against it. Instead of printing to a terminal, it streams `FetchProgressEvent`s and the final result to the browser over Server-Sent Events (`POST /api/crawl` to start a run, `GET /api/crawl/:jobId/events` to follow it).
+The server wraps [`@zod-crawler/core`](https://zodcrawler.figulus.dev/#/core-usage) the same way the CLI does: fetching and caching each sample, merging shapes to infer a Zod schema, and validating every cached sample against it. Instead of printing to a terminal, it streams `FetchProgressEvent`s and the final result to the browser over Server-Sent Events (`POST /api/crawl` to start a run, `GET /api/crawl/:jobId/events` to follow it).

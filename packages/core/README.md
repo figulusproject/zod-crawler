@@ -5,7 +5,7 @@
 
 > _Everyone has the right to resist occupation._
 
-The schema-inference engine behind [`zod-crawler`](../../apps/cli). Give it
+The schema-inference engine behind [`zod-crawler`](https://zodcrawler.figulus.dev/#/cli). Give it
 a set of JSON samples and it infers a Zod v4 schema that fits all of them.
 Pure functions, no I/O: fetching and caching samples is the CLI's job, not
 this package's.
@@ -51,6 +51,7 @@ The keys of the `samples` object (`a`, `b` above) are arbitrary sample ids.
 They're only used to scope per-field optionality and enum/date detection
 across the sampled instances, and never show up in the generated schema.
 
-See the [docs site](/docs/core-usage.md) for the `useZodTransformers` option,
-what field types `inferSchema` detects, finding what to crawl next via
-`findCrawlCandidates`, and the rest of the package's exports.
+See the [docs site](https://zodcrawler.figulus.dev/#/core-usage) for the
+`useZodTransformers` option, what field types `inferSchema` detects, finding
+what to crawl next via `findCrawlCandidates`, and the rest of the package's
+exports.

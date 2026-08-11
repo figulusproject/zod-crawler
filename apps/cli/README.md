@@ -24,13 +24,13 @@ This writes `./out/schema.ts` and caches each raw response under
 re-fetching. Delete `./out/cache/` (or point `--output` elsewhere) to force
 a fresh fetch.
 
-See the [docs site](/docs/cli.md) for the full flag reference,
-an example run, crawling further via `--emit-crawl-candidates`, and advanced
-queuing via `--redis-url`.
+See the [docs site](https://zodcrawler.figulus.dev/#/cli) for the full flag
+reference, an example run, crawling further via `--emit-crawl-candidates`,
+and advanced queuing via `--redis-url`.
 
 ## How it works
 
-This is a thin wrapper around [`@zod-crawler/core`](../../packages/core).
+This is a thin wrapper around [`@zod-crawler/core`](https://zodcrawler.figulus.dev/#/core-usage).
 It fetches each id, caching raw responses to disk and resuming from cache
 on re-runs, merges the samples' shapes to infer a Zod schema, validates
 every cached sample against that schema in-process, and writes the result.

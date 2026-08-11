@@ -19,7 +19,8 @@ npx @zod-crawler/cli \
 
 This writes an inferred `./out/schema.ts` and caches every fetched response
 under `./out/cache/`, so re-running the same command doesn't refetch. See
-the [docs site](/docs/) for the full flag list and everything else below.
+the [docs site](https://zodcrawler.figulus.dev/) for the full flag list and
+everything else below.
 
 ## Apps/Packages
 
@@ -33,4 +34,4 @@ Designed for Zod v4 natively, not backwards-compatible with Zod v3 (uses new `z.
 
 ## Development
 
-See the [docs site](/docs/development.md) for the full monorepo dev commands.
+See the [docs site](https://zodcrawler.figulus.dev/#/development) for the full monorepo dev commands.
