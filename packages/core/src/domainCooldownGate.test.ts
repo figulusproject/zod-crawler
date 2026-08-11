@@ -8,6 +8,10 @@ import { parseRedisUrl } from "./redisConnection.js";
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
 const connection = parseRedisUrl(REDIS_URL);
 
+// Cooldown queues are keyed by domain alone and shared across concurrent crawls, so a run-unique suffix keeps repeated local test runs from seeing another run's leftover rate-limiter state.
+const runId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const domain = (label: string): string => `${label}.${runId}.test`;
+
 describe("createDomainCooldownGate", () => {
   let gate: DomainCooldownGate | undefined;
 
@@ -23,9 +27,10 @@ describe("createDomainCooldownGate", () => {
 
   it("paces calls to the same domain at least cooldownMs apart", async () => {
     gate = createDomainCooldownGate(connection, 300);
+    const host = domain("same");
     const start = Date.now();
-    await gate.gate("example.com", async () => {});
-    await gate.gate("example.com", async () => {});
+    await gate.gate(host, async () => {});
+    await gate.gate(host, async () => {});
     expect(Date.now() - start).toBeGreaterThanOrEqual(300 - 20);
   });
 
@@ -33,8 +38,8 @@ describe("createDomainCooldownGate", () => {
     gate = createDomainCooldownGate(connection, 2000);
     const start = Date.now();
     await Promise.all([
-      gate.gate("a.example.com", async () => {}),
-      gate.gate("b.example.com", async () => {}),
+      gate.gate(domain("a"), async () => {}),
+      gate.gate(domain("b"), async () => {}),
     ]);
     expect(Date.now() - start).toBeLessThan(1000);
   });

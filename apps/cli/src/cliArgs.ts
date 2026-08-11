@@ -20,6 +20,7 @@ export interface CliSettings {
   stopOnError: boolean;
   redisUrl: string | undefined;
   concurrency: number | undefined;
+  detach: boolean;
 }
 
 export type ParseCliArgsResult =
@@ -29,7 +30,7 @@ export const USAGE =
   "Usage: zod-crawler (--ids <id1,id2,...> | --ids-file <path>) --output <dir> " +
   "[--url-template <template containing {id}>] [--delay <ms>] [--schema-name <name>] " +
   "[--emit-crawl-candidates] [--zod-transformers] [--stop-on-error] " +
-  "[--redis-url <url>] [--concurrency <n>]";
+  "[--redis-url <url>] [--concurrency <n>] [--detach|-d]";
 
 const cli = defineCli({
   flags: {
@@ -55,6 +56,7 @@ const cli = defineCli({
     concurrency: {
       schema: numberString({ integer: true, min: 1 }).optional(),
     },
+    detach: { schema: z.boolean().default(false), short: "d" },
   },
   usage: USAGE,
 });
@@ -151,6 +153,7 @@ const settingsSchema = cli.flagsSchema.transform((raw, ctx): CliSettings => {
     stopOnError: raw.stopOnError,
     redisUrl,
     concurrency,
+    detach: raw.detach,
   };
 });
 

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getJob, startCrawlJob } from "./crawlJobs.js";
+import { getJob, listJobs, startCrawlJob } from "./crawlJobs.js";
 import type { CrawlCompleteEvent, CrawlErrorEvent } from "../shared/events.js";
 import type { ResolvedCrawlRequest } from "./requestSchema.js";
 
@@ -133,5 +133,24 @@ describe("crawlJobs", () => {
     // status and .error are set together, before the "failed" event fires, so read the stored error rather than re-subscribing to an event that already fired.
     const error = getJob(jobId)?.error as CrawlErrorEvent | undefined;
     expect(error?.message).toMatch(/Failed to fetch id "missing"/);
+  });
+
+  it("lists an in-flight job so a refreshed page can find it", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Promise(() => {})), // never resolves: keeps the job "running" for the duration of this test
+    );
+
+    const jobId = startCrawlJob(baseRequest({ ids: ["a"] }));
+
+    const summary = listJobs().find((entry) => entry.jobId === jobId);
+    expect(summary).toBeDefined();
+    expect(summary?.status).toBe("running");
+    expect(summary?.request).toEqual({
+      ids: ["a"],
+      schemaName: "InferredSchema",
+      delayMs: 0,
+      urlTemplate: "https://example.com/{id}.json",
+    });
   });
 });

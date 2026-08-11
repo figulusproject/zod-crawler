@@ -16,6 +16,7 @@ import {
   validateSamples,
 } from "@zod-crawler/core";
 import type {
+  ActiveCrawlSummary,
   CrawlCompleteEvent,
   CrawlErrorEvent,
   CrawlProgressEvent,
@@ -39,6 +40,10 @@ export interface CrawlJob {
   id: string;
   emitter: EventEmitter;
   status: "running" | "done" | "error";
+  request: ResolvedCrawlRequest;
+  startedAt: Date;
+  // Keyed by index, not appended, so a client reconnecting mid-crawl (e.g. after a page refresh) can be caught up on every id's last known status, not just whatever fires next.
+  progress: Map<number, CrawlProgressEvent>;
   result?: CrawlCompleteEvent;
   error?: CrawlErrorEvent;
 }
@@ -50,10 +55,30 @@ function beginJob(id: string, request: ResolvedCrawlRequest): string {
     id,
     emitter: new EventEmitter(),
     status: "running",
+    request,
+    startedAt: new Date(),
+    progress: new Map(),
   };
   jobs.set(job.id, job);
   void runJob(job, request);
   return job.id;
+}
+
+// Newest first, so a client reconnecting after a refresh sees its own just-started crawl at the top.
+export function listJobs(): ActiveCrawlSummary[] {
+  return [...jobs.values()]
+    .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
+    .map((job) => ({
+      jobId: job.id,
+      status: job.status,
+      startedAt: job.startedAt.toISOString(),
+      request: {
+        ids: job.request.ids,
+        schemaName: job.request.schemaName,
+        delayMs: job.request.delayMs,
+        urlTemplate: job.request.urlTemplate,
+      },
+    }));
 }
 
 export function startCrawlJob(request: ResolvedCrawlRequest): string {
@@ -121,6 +146,7 @@ async function runJob(
       concurrency: REDIS_URL ? DEFAULT_CONCURRENCY : undefined,
       crawlId: job.id,
       onProgress: (event: CrawlProgressEvent) => {
+        job.progress.set(event.index, event);
         if (event.status === "error" && event.error !== undefined) {
           fetchFailures.push({ id: event.id, error: event.error });
         }

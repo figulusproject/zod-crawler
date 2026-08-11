@@ -2,7 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import express, { type Express, type Request, type Response } from "express";
 import { crawlRequestSchema } from "./requestSchema.js";
-import { getJob, startCrawlJob } from "./crawlJobs.js";
+import { getJob, listJobs, startCrawlJob } from "./crawlJobs.js";
 import type { StartCrawlResponse } from "../shared/events.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -28,6 +28,10 @@ export function createApp(): Express {
     res.status(202).json(body);
   });
 
+  app.get("/api/crawls", (_req: Request, res: Response) => {
+    res.json(listJobs());
+  });
+
   app.get<{ jobId: string }>("/api/crawl/:jobId/events", (req, res) => {
     const job = getJob(req.params.jobId);
     if (!job) {
@@ -40,6 +44,11 @@ export function createApp(): Express {
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
     });
+
+    // Catches a reconnecting client up on every id's last known status - otherwise ids fetched before this connection opened (e.g. before a page refresh) would sit at "pending" forever.
+    for (const event of job.progress.values()) {
+      sendEvent(res, "progress", event);
+    }
 
     // A fast run can finish before the SSE request lands, so serve the stored terminal result instead of subscribing to events that already fired.
     if (job.status === "done" && job.result) {
