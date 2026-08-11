@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   crawlCandidatesToCsv,
   crawlCandidatesToJson,
+  crawlCandidatesToTxt,
   crawlCandidatesToYaml,
 } from "./crawlCandidateFormats.js";
 import type { CrawlCandidateField } from "./findCrawlCandidates.js";
@@ -10,6 +11,26 @@ const fields: CrawlCandidateField[] = [
   { path: "authors.author.key", values: ["/authors/OL1A", "/authors/OL2A"] },
   { path: "publisher.key", values: ["/publishers/OL3P"] },
 ];
+
+describe("crawlCandidatesToTxt", () => {
+  it("flattens all fields into a sorted, deduplicated, newline-terminated list", () => {
+    expect(crawlCandidatesToTxt(fields)).toBe(
+      "/authors/OL1A\n/authors/OL2A\n/publishers/OL3P\n",
+    );
+  });
+
+  it("deduplicates values shared across fields", () => {
+    const txt = crawlCandidatesToTxt([
+      { path: "a", values: ["/x/1"] },
+      { path: "b", values: ["/x/1", "/x/2"] },
+    ]);
+    expect(txt).toBe("/x/1\n/x/2\n");
+  });
+
+  it("handles no fields", () => {
+    expect(crawlCandidatesToTxt([])).toBe("");
+  });
+});
 
 describe("crawlCandidatesToJson", () => {
   it("maps each path to its values array", () => {

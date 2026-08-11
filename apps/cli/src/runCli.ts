@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import prettier from "prettier";
 import {
   createUrlFetcher,
+  crawlCandidatesToTxt,
   fetchAndCacheSamples,
   findCrawlCandidates,
   hasCachedSample,
@@ -188,12 +189,11 @@ async function writeCrawlCandidates(
       newCandidates.push(value);
     }
   }
-  newCandidates.sort();
 
   const candidatesPath = path.join(outputDir, "crawl-candidates.txt");
   await writeFile(
     candidatesPath,
-    newCandidates.map((id) => `${id}\n`).join(""),
+    crawlCandidatesToTxt([{ path: "id", values: newCandidates }]),
   );
   console.log(
     `Wrote ${candidatesPath}. ${newCandidates.length} new crawl candidate(s) found.`,

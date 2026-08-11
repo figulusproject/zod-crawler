@@ -1,5 +1,16 @@
 import type { CrawlCandidateField } from "./findCrawlCandidates.js";
 
+export function crawlCandidatesToTxt(fields: CrawlCandidateField[]): string {
+  const seen = new Set<string>();
+  for (const { values } of fields) {
+    for (const value of values) seen.add(value);
+  }
+  return [...seen]
+    .sort()
+    .map((value) => `${value}\n`)
+    .join("");
+}
+
 export function crawlCandidatesToJson(fields: CrawlCandidateField[]): string {
   return JSON.stringify(
     Object.fromEntries(fields.map(({ path, values }) => [path, values])),

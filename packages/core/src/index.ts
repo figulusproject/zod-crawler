@@ -33,6 +33,7 @@ export { findCrawlCandidates } from "./findCrawlCandidates.js";
 export {
   crawlCandidatesToCsv,
   crawlCandidatesToJson,
+  crawlCandidatesToTxt,
   crawlCandidatesToYaml,
 } from "./crawlCandidateFormats.js";
 
