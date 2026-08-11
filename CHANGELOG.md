@@ -18,6 +18,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `@zod-crawler/core`: `crawlCandidatesToJson`/`crawlCandidatesToYaml`/`crawlCandidatesToCsv`, converting a `CrawlCandidateField[]` into each of those formats.
 - `@zod-crawler/web`: the crawl candidates list gains global and per-field select-all/select-none controls, and a save-to-file button (JSON/YAML/CSV) for the current selection, instead of only being re-feedable back into the ids field.
 
+### Changed
+
+- `@zod-crawler/cli`: upgraded to `zod-cli-flags@1.0.2`. The `Usage:` line printed on invalid arguments is now generated from the flag declarations instead of a separately hand-maintained string, so it can't drift out of sync with the actual flags - it can't yet express "exactly one of `--ids`/`--ids-file`" as a group like the old string did ([zod-cli-flags#7](https://github.com/figulusproject/zod-cli-flags/issues/7)).
+
 ## [1.0.1] - 2026-08-09
 
 ### Changed
