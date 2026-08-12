@@ -1,6 +1,6 @@
 {
   "name": "@zod-crawler/cli",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Fetches a set of JSON API responses and generates a Zod v4 schema that validates all of them.",
   "type": "module",
   "bin": {
@@ -20,7 +20,7 @@
     "prepack": "cp ../../LICENSE ./LICENSE"
   },
   "dependencies": {
-    "@zod-crawler/core": "^1.0.1",
+    "@zod-crawler/core": "^1.1.0",
     "prettier": "^3.8.3",
     "zod": "^4.4.3",
     "zod-cli-flags": "^1.0.2",
