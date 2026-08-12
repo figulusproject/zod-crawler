@@ -86,4 +86,45 @@ describe("findCrawlCandidates", () => {
 
     expect(findCrawlCandidates(samples)).toEqual([]);
   });
+
+  it("finds a reference field that's sometimes a nested object, sometimes a bare url", () => {
+    // "ref" merges to a union directly on the field (not inside an array), unlike the other cases here.
+    const samples: Record<string, JsonValue> = {
+      a: { ref: { key: "/foo/1" } },
+      b: { ref: "https://example.com/simple" },
+    };
+
+    const candidates = findCrawlCandidates(samples);
+
+    expect(candidates).toContainEqual({
+      path: "ref",
+      values: ["https://example.com/simple"],
+    });
+  });
+
+  it("walks into the object alternatives of a union nested inside an array item", () => {
+    // "entries" items vary between an object and a bare url, so the merged item schema is itself a union node.
+    const samples: Record<string, JsonValue> = {
+      a: { entries: [{ ref: { key: "https://example.com/x/1" } }] },
+      b: { entries: ["https://example.com/y/1"] },
+    };
+
+    const candidates = findCrawlCandidates(samples);
+
+    expect(candidates).toContainEqual({
+      path: "entries.ref.key",
+      values: ["https://example.com/x/1"],
+    });
+  });
+
+  // Known limitation: a bare array of reference strings isn't detected, since the array's own
+  // key ("links") never matches a raw string value at that path - only object-shaped array items do.
+  it("does not detect a bare array of url strings as a crawl candidate", () => {
+    const samples: Record<string, JsonValue> = {
+      a: { links: ["https://example.com/1"] },
+      b: { links: ["https://example.com/2"] },
+    };
+
+    expect(findCrawlCandidates(samples)).toEqual([]);
+  });
 });

@@ -250,8 +250,8 @@ describe("runCli", () => {
   it("writes the schema and reports failures when validation fails for some samples", async () => {
     // classifyRawString's date-prefix regex has no trailing anchor, so this tags as "coerce.date" even though the month/day are out of range and z.coerce.date() rejects it at validation time.
     const books: Record<string, unknown> = {
-      a: { title: "Book A", releasedAt: "2024-01-01" },
-      b: { title: "Book B", releasedAt: "2024-13-45garbage" },
+      a: { title: "Book A", releasedAt: "2026-01-01" },
+      b: { title: "Book B", releasedAt: "2026-13-45garbage" },
     };
     vi.stubGlobal(
       "fetch",
