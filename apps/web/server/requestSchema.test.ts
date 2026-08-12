@@ -47,8 +47,8 @@ describe("crawlRequestSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects a non-integer or negative delayMs", () => {
-    for (const bad of [-5, 7.5]) {
+  it("rejects a non-integer, negative, or below-minimum delayMs", () => {
+    for (const bad of [-5, 7.5, 0, 50]) {
       const result = crawlRequestSchema.safeParse({
         ids: ["a"],
         delayMs: bad,
@@ -62,7 +62,7 @@ describe("crawlRequestSchema", () => {
     const result = crawlRequestSchema.safeParse({
       ids: ["a", "b"],
       urlTemplate: "https://example.com/{id}.json",
-      delayMs: 0,
+      delayMs: 100,
       schemaName: "MySchema",
       emitCrawlCandidates: true,
     });
@@ -70,7 +70,7 @@ describe("crawlRequestSchema", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.urlTemplate).toBe("https://example.com/{id}.json");
-      expect(result.data.delayMs).toBe(0);
+      expect(result.data.delayMs).toBe(100);
       expect(result.data.schemaName).toBe("MySchema");
       expect(result.data.emitCrawlCandidates).toBe(true);
     }

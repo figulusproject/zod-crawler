@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   DEFAULT_DELAY_MS,
+  MIN_DELAY_MS,
   DEFAULT_SCHEMA_NAME,
   SCHEMA_NAME_PATTERN,
 } from "@zod-crawler/core";
@@ -18,7 +19,7 @@ export interface ResolvedCrawlRequest {
 const rawRequestSchema = z.object({
   ids: z.array(z.string()),
   urlTemplate: z.string().optional(),
-  delayMs: z.coerce.number().int().min(0).optional(),
+  delayMs: z.coerce.number().int().min(MIN_DELAY_MS).optional(),
   schemaName: z.string().optional(),
   emitCrawlCandidates: z.boolean().default(false),
   useZodTransformers: z.boolean().default(false),

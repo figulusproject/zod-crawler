@@ -38,7 +38,7 @@ function baseRequest(
   return {
     ids: ["a", "b"],
     urlTemplate: "https://example.com/{id}.json",
-    delayMs: 0,
+    delayMs: 100,
     schemaName: "InferredSchema",
     emitCrawlCandidates: false,
     useZodTransformers: false,
