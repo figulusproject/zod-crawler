@@ -8,11 +8,14 @@ import { fileURLToPath } from "node:url";
 import prettier from "prettier";
 import {
   createUrlFetcher,
+  crawlCandidatesFormatters,
   fetchAndCacheSamples,
   findCrawlCandidates,
   hasCachedSample,
   inferSchema,
   validateSamples,
+  type CrawlCandidateField,
+  type CrawlCandidatesFormat,
   type FetchProgressEvent,
 } from "@zod-crawler/core";
 import { parseCliArgs, usage, type CliSettings } from "./cliArgs.js";
@@ -109,7 +112,12 @@ export async function runCli(argv: string[]): Promise<number> {
   }
 
   if (settings.emitCrawlCandidates) {
-    await writeCrawlCandidates(samples, settings.ids, settings.outputDir);
+    await writeCrawlCandidates(
+      samples,
+      settings.ids,
+      settings.outputDir,
+      settings.crawlCandidatesFormat,
+    );
   }
 
   return exitCode;
@@ -129,7 +137,10 @@ async function runDetached(settings: CliSettings): Promise<number> {
   }
   childArgs.push("--delay", String(settings.delayMs));
   childArgs.push("--schema-name", settings.schemaName);
-  if (settings.emitCrawlCandidates) childArgs.push("--emit-crawl-candidates");
+  if (settings.emitCrawlCandidates) {
+    childArgs.push("--emit-crawl-candidates");
+    childArgs.push("--crawl-candidates-format", settings.crawlCandidatesFormat);
+  }
   if (settings.useZodTransformers) childArgs.push("--zod-transformers");
   if (settings.stopOnError) childArgs.push("--stop-on-error");
   if (settings.redisUrl !== undefined) {
@@ -169,33 +180,36 @@ async function runDetached(settings: CliSettings): Promise<number> {
   return 0;
 }
 
-// Writes only new candidates (not a seed id, not already cached), in the same one-per-line format --ids-file reads.
+// Writes only new candidates (not a seed id, not already cached), grouped by field path like the web app's export.
 async function writeCrawlCandidates(
   samples: Awaited<ReturnType<typeof fetchAndCacheSamples>>,
   seedIds: readonly string[],
   outputDir: string,
+  format: CrawlCandidatesFormat,
 ): Promise<void> {
-  const seen = new Set<string>();
-  for (const group of findCrawlCandidates(samples)) {
-    for (const value of group.values) seen.add(value);
-  }
-  for (const id of seedIds) seen.delete(id);
-
+  const seeds = new Set(seedIds);
   const cacheDir = path.join(outputDir, "cache");
-  const newCandidates: string[] = [];
-  for (const value of seen) {
-    if (!(await hasCachedSample(cacheDir, value))) {
-      newCandidates.push(value);
-    }
-  }
-  newCandidates.sort();
 
-  const candidatesPath = path.join(outputDir, "crawl-candidates.txt");
-  await writeFile(
-    candidatesPath,
-    newCandidates.map((id) => `${id}\n`).join(""),
+  const groups: CrawlCandidateField[] = [];
+  for (const group of findCrawlCandidates(samples)) {
+    const values: string[] = [];
+    for (const value of group.values) {
+      if (seeds.has(value)) continue;
+      if (await hasCachedSample(cacheDir, value)) continue;
+      values.push(value);
+    }
+    if (values.length > 0) groups.push({ path: group.path, values });
+  }
+
+  const uniqueCount = new Set(groups.flatMap((group) => group.values)).size;
+
+  const formatter = crawlCandidatesFormatters[format];
+  const candidatesPath = path.join(
+    outputDir,
+    `crawl-candidates.${formatter.extension}`,
   );
+  await writeFile(candidatesPath, formatter.toText(groups));
   console.log(
-    `Wrote ${candidatesPath}. ${newCandidates.length} new crawl candidate(s) found.`,
+    `Wrote ${candidatesPath}. ${uniqueCount} new crawl candidate(s) found.`,
   );
 }

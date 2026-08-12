@@ -1,3 +1,5 @@
+import { useRef, useState, type ChangeEvent } from "react";
+import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -5,6 +7,10 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { parseIds } from "@/lib/parseIds";
 import { MIN_DELAY_MS, type FormState } from "@/lib/formState";
+import {
+  crawlCandidatesFormatFromExtension,
+  idsParsers,
+} from "@zod-crawler/core/crawlCandidateFormats";
 
 interface CrawlFormProps {
   form: FormState;
@@ -22,6 +28,37 @@ export function CrawlForm({
   const idCount = parseIds(form.idsText).length;
   const urlTemplateInvalid =
     form.urlTemplate.trim().length > 0 && !form.urlTemplate.includes("{id}");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    const format = crawlCandidatesFormatFromExtension(file.name);
+    if (format === undefined) {
+      setUploadError(
+        `Unsupported file type "${file.name}" - expected .txt, .json, .yaml/.yml, or .csv.`,
+      );
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const uploadedIds = idsParsers[format](text);
+      onChange({
+        idsText: parseIds([form.idsText, ...uploadedIds].join("\n")).join("\n"),
+      });
+      setUploadError(null);
+    } catch (error) {
+      setUploadError(
+        `Could not parse "${file.name}": ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  };
 
   return (
     <form
@@ -32,7 +69,26 @@ export function CrawlForm({
       }}
     >
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="ids">Ids</Label>
+        <div className="flex items-center justify-between gap-2">
+          <Label htmlFor="ids">Ids</Label>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={disabled}
+          >
+            <Upload className="size-4" />
+            Upload file
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".txt,.json,.yaml,.yml,.csv"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+        </div>
         <Textarea
           id="ids"
           rows={6}
@@ -44,6 +100,11 @@ export function CrawlForm({
         <p className="text-xs text-muted-foreground">
           {idCount} unique id{idCount === 1 ? "" : "s"}
         </p>
+        {uploadError && (
+          <p className="rounded-md border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive">
+            {uploadError}
+          </p>
+        )}
       </div>
 
       <div className="flex flex-col gap-1.5">

@@ -8,6 +8,10 @@ import {
   MIN_DELAY_MS,
   DEFAULT_SCHEMA_NAME,
   DEFAULT_CONCURRENCY,
+  CRAWL_CANDIDATES_FORMATS,
+  crawlCandidatesFormatFromExtension,
+  idsParsers,
+  type CrawlCandidatesFormat,
 } from "@zod-crawler/core";
 
 export interface CliSettings {
@@ -17,6 +21,7 @@ export interface CliSettings {
   delayMs: number;
   schemaName: string;
   emitCrawlCandidates: boolean;
+  crawlCandidatesFormat: CrawlCandidatesFormat;
   useZodTransformers: boolean;
   stopOnError: boolean;
   redisUrl: string | undefined;
@@ -57,6 +62,10 @@ const cli = defineCli({
       schema: z.boolean().default(false),
       long: "emit-crawl-candidates",
     },
+    crawlCandidatesFormat: {
+      schema: z.enum(CRAWL_CANDIDATES_FORMATS).optional(),
+      long: "crawl-candidates-format",
+    },
     zodTransformers: {
       schema: z.boolean().default(false),
       long: "zod-transformers",
@@ -96,6 +105,15 @@ const settingsSchema = cli.flagsSchema.transform((raw, ctx): CliSettings => {
       .map((id) => id.trim())
       .filter((id) => id.length > 0);
   } else {
+    const idsFileFormat = crawlCandidatesFormatFromExtension(raw.idsFile!);
+    if (idsFileFormat === undefined) {
+      ctx.addIssue({
+        code: "custom",
+        message: `--ids-file "${raw.idsFile}" has an unrecognized extension - expected one of: ${CRAWL_CANDIDATES_FORMATS.join(", ")} (or .yml).`,
+      });
+      return z.NEVER;
+    }
+
     let fileContents: string;
     try {
       fileContents = readFileSync(raw.idsFile!, "utf8");
@@ -108,10 +126,18 @@ const settingsSchema = cli.flagsSchema.transform((raw, ctx): CliSettings => {
       });
       return z.NEVER;
     }
-    rawIds = fileContents
-      .split("\n")
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0);
+
+    try {
+      rawIds = idsParsers[idsFileFormat](fileContents);
+    } catch (error) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Could not parse --ids-file "${raw.idsFile}" as ${idsFileFormat}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      });
+      return z.NEVER;
+    }
   }
 
   const ids = [...new Set(rawIds)];
@@ -147,6 +173,17 @@ const settingsSchema = cli.flagsSchema.transform((raw, ctx): CliSettings => {
     return z.NEVER;
   }
 
+  if (raw.crawlCandidatesFormat !== undefined && !raw.emitCrawlCandidates) {
+    ctx.addIssue({
+      code: "custom",
+      message:
+        "--crawl-candidates-format requires --emit-crawl-candidates - it only applies to the crawl candidates file.",
+    });
+    return z.NEVER;
+  }
+  const crawlCandidatesFormat: CrawlCandidatesFormat =
+    raw.crawlCandidatesFormat ?? "txt";
+
   const redisUrl = raw.redisUrl ?? process.env.REDIS_URL;
   if (raw.concurrency !== undefined && redisUrl === undefined) {
     ctx.addIssue({
@@ -168,6 +205,7 @@ const settingsSchema = cli.flagsSchema.transform((raw, ctx): CliSettings => {
     delayMs,
     schemaName,
     emitCrawlCandidates: raw.emitCrawlCandidates,
+    crawlCandidatesFormat,
     useZodTransformers: raw.zodTransformers,
     stopOnError: raw.stopOnError,
     redisUrl,

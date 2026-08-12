@@ -15,6 +15,7 @@ describe("parseCliArgs", () => {
       expect(result.settings.schemaName).toBe("InferredSchema");
       expect(result.settings.urlTemplate).toBeUndefined();
       expect(result.settings.emitCrawlCandidates).toBe(false);
+      expect(result.settings.crawlCandidatesFormat).toBe("txt");
       expect(result.settings.useZodTransformers).toBe(false);
       expect(result.settings.stopOnError).toBe(false);
     }
@@ -32,7 +33,57 @@ describe("parseCliArgs", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.settings.emitCrawlCandidates).toBe(true);
+      expect(result.settings.crawlCandidatesFormat).toBe("txt");
     }
+  });
+
+  describe("--crawl-candidates-format", () => {
+    it("sets crawlCandidatesFormat when combined with --emit-crawl-candidates", () => {
+      const result = parseCliArgs([
+        "--ids",
+        "a",
+        "--output",
+        "/tmp/out",
+        "--emit-crawl-candidates",
+        "--crawl-candidates-format",
+        "yaml",
+      ]);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.settings.crawlCandidatesFormat).toBe("yaml");
+      }
+    });
+
+    it("rejects --crawl-candidates-format without --emit-crawl-candidates", () => {
+      const result = parseCliArgs([
+        "--ids",
+        "a",
+        "--output",
+        "/tmp/out",
+        "--crawl-candidates-format",
+        "yaml",
+      ]);
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.message).toMatch(/--crawl-candidates-format/);
+      }
+    });
+
+    it("rejects an unsupported format", () => {
+      const result = parseCliArgs([
+        "--ids",
+        "a",
+        "--output",
+        "/tmp/out",
+        "--emit-crawl-candidates",
+        "--crawl-candidates-format",
+        "xml",
+      ]);
+
+      expect(result.ok).toBe(false);
+    });
   });
 
   it("sets useZodTransformers when --zod-transformers is passed", () => {
@@ -343,6 +394,71 @@ describe("parseCliArgs", () => {
         "--output",
         "/tmp/out",
       ]);
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.message).toMatch(/--ids-file/);
+    });
+
+    it("reads ids from a .json file, flattening every field", async () => {
+      const file = path.join(dir, "ids.json");
+      await writeFile(
+        file,
+        JSON.stringify({ "authors.key": ["a", "b"], "publisher.key": ["c"] }),
+      );
+
+      const result = parseCliArgs(["--ids-file", file, "--output", "/tmp/out"]);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.settings.ids).toEqual(["a", "b", "c"]);
+      }
+    });
+
+    it("reads ids from a .yaml file, flattening every field", async () => {
+      const file = path.join(dir, "ids.yaml");
+      await writeFile(
+        file,
+        "authors.key:\n  - a\n  - b\npublisher.key:\n  - c\n",
+      );
+
+      const result = parseCliArgs(["--ids-file", file, "--output", "/tmp/out"]);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.settings.ids).toEqual(["a", "b", "c"]);
+      }
+    });
+
+    it("reads ids from a .csv file, dropping the header row", async () => {
+      const file = path.join(dir, "ids.csv");
+      await writeFile(file, "authors.key,publisher.key\na,c\nb,\n");
+
+      const result = parseCliArgs(["--ids-file", file, "--output", "/tmp/out"]);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.settings.ids).toEqual(["a", "c", "b"]);
+      }
+    });
+
+    it("rejects an --ids-file with an unrecognized extension", async () => {
+      const file = path.join(dir, "ids.xml");
+      await writeFile(file, "<ids/>");
+
+      const result = parseCliArgs(["--ids-file", file, "--output", "/tmp/out"]);
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.message).toMatch(/--ids-file/);
+        expect(result.message).toMatch(/unrecognized extension/);
+      }
+    });
+
+    it("reports a clear error when a .json --ids-file isn't valid JSON", async () => {
+      const file = path.join(dir, "ids.json");
+      await writeFile(file, "not json");
+
+      const result = parseCliArgs(["--ids-file", file, "--output", "/tmp/out"]);
 
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.message).toMatch(/--ids-file/);

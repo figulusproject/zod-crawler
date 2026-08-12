@@ -6,6 +6,7 @@ import type { CrawlCandidateField } from "@zod-crawler/core";
 import {
   crawlCandidatesToCsv,
   crawlCandidatesToJson,
+  crawlCandidatesToTxt,
   crawlCandidatesToYaml,
 } from "@zod-crawler/core/crawlCandidateFormats";
 
@@ -14,7 +15,7 @@ interface CandidatesListProps {
   onReFeed: (values: string[]) => void;
 }
 
-type SaveFormat = "json" | "yaml" | "csv";
+type SaveFormat = "txt" | "json" | "yaml" | "csv";
 
 const SAVE_FORMATS: Record<
   SaveFormat,
@@ -25,6 +26,12 @@ const SAVE_FORMATS: Record<
     toText: (fields: CrawlCandidateField[]) => string;
   }
 > = {
+  txt: {
+    label: "TXT",
+    extension: "txt",
+    mimeType: "text/plain",
+    toText: crawlCandidatesToTxt,
+  },
   json: {
     label: "JSON",
     extension: "json",

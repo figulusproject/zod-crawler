@@ -8,7 +8,7 @@ A Docker-deployed single-page UI for the same crawl pipeline behind [`zod-crawle
 docker run --rm -p 3000:3000 figulusproject/zod-crawler-web
 ```
 
-Then open `http://localhost:3000`. Fill in the ids (or paste a list), a URL template like `https://example.com/items/{id}`, and submit. Progress streams in per-id as each sample is fetched, followed by the generated schema, the validation summary, and any crawl candidates found along the way, which you can review and re-feed straight into another run (see [Crawling further](crawling-further.md)).
+Then open `http://localhost:3000`. Fill in the ids (paste a list, or upload a `.txt`, `.json`, `.yaml`/`.yml`, or `.csv` file of them), a URL template like `https://example.com/items/{id}`, and submit. Progress streams in per-id as each sample is fetched, followed by the generated schema, the validation summary, and any crawl candidates found along the way, which you can review, save in any of those same four formats, and re-feed straight into another run (see [Crawling further](crawling-further.md)).
 
 ## Docker
 

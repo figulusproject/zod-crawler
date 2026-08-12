@@ -33,8 +33,18 @@ export { findCrawlCandidates } from "./findCrawlCandidates.js";
 export {
   crawlCandidatesToCsv,
   crawlCandidatesToJson,
+  crawlCandidatesToTxt,
   crawlCandidatesToYaml,
+  CRAWL_CANDIDATES_FORMATS,
+  crawlCandidatesFormatters,
+  parseIdsFromTxt,
+  parseIdsFromJson,
+  parseIdsFromYaml,
+  parseIdsFromCsv,
+  idsParsers,
+  crawlCandidatesFormatFromExtension,
 } from "./crawlCandidateFormats.js";
+export type { CrawlCandidatesFormat } from "./crawlCandidateFormats.js";
 
 export {
   SCHEMA_NAME_PATTERN,

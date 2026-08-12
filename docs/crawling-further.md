@@ -1,6 +1,6 @@
 # Crawling further
 
-`--ids`/`--ids-file` is a fixed list - the [CLI](cli.md) doesn't crawl on its own. `--emit-crawl-candidates` gets you most of the way there: it looks at the samples you just fetched for fields worth fetching next (an id/URL that varies from sample to sample, not a fixed constant) and writes them to `crawl-candidates.txt`, one per line, in the same format `--ids-file` reads. Review the list, delete anything you don't want, and feed it back in for the next hop.
+`--ids`/`--ids-file` is a fixed list - the [CLI](cli.md) doesn't crawl on its own. `--emit-crawl-candidates` gets you most of the way there: it looks at the samples you just fetched for fields worth fetching next (an id/URL that varies from sample to sample, not a fixed constant) and writes them to `crawl-candidates.txt`, one per line, grouped by which field they came from. Review the list, delete anything you don't want, and feed it back in for the next hop - `--ids-file` reads the same four formats `--emit-crawl-candidates` can write (`txt`, `json`, `yaml`, `csv`, picked via `--crawl-candidates-format` and sniffed back in from the file extension), flattening every field's values into one id list either way.
 
 For example, crawling the OpenLibrary API for a handful of works surfaces each work's authors as `authors.author.key` entries like `/authors/OL26320A` (while correctly leaving out `authors.type.key`, a constant `/type/author_role` tag on every entry that isn't actually worth crawling):
 

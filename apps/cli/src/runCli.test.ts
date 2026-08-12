@@ -99,6 +99,40 @@ describe("runCli", () => {
     expect(candidates).toEqual(["/other/c", "/other/d"]);
   });
 
+  it("writes crawl candidates grouped by field path when --crawl-candidates-format is json", async () => {
+    const books: Record<string, unknown> = {
+      a: { title: "Book A", ref: { key: "/other/c" } },
+      b: { title: "Book B", ref: { key: "/other/d" } },
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const id = url.replace("https://example.com/", "").replace(".json", "");
+        return jsonResponse(books[id]);
+      }),
+    );
+
+    const code = await runCli([
+      "--ids",
+      "a,b",
+      "--output",
+      outputDir,
+      "--delay",
+      "100",
+      "--url-template",
+      "https://example.com/{id}.json",
+      "--emit-crawl-candidates",
+      "--crawl-candidates-format",
+      "json",
+    ]);
+
+    expect(code).toBe(0);
+
+    const candidatesPath = path.join(outputDir, "crawl-candidates.json");
+    const candidates = JSON.parse(await readFile(candidatesPath, "utf8"));
+    expect(candidates).toEqual({ "ref.key": ["/other/c", "/other/d"] });
+  });
+
   it("does not write crawl-candidates.txt when the flag is omitted", async () => {
     vi.stubGlobal(
       "fetch",
