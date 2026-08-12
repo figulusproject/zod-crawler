@@ -37,6 +37,12 @@ export {
   crawlCandidatesToYaml,
   CRAWL_CANDIDATES_FORMATS,
   crawlCandidatesFormatters,
+  parseIdsFromTxt,
+  parseIdsFromJson,
+  parseIdsFromYaml,
+  parseIdsFromCsv,
+  idsParsers,
+  crawlCandidatesFormatFromExtension,
 } from "./crawlCandidateFormats.js";
 export type { CrawlCandidatesFormat } from "./crawlCandidateFormats.js";
 

@@ -8,6 +8,8 @@ import {
   DEFAULT_SCHEMA_NAME,
   DEFAULT_CONCURRENCY,
   CRAWL_CANDIDATES_FORMATS,
+  crawlCandidatesFormatFromExtension,
+  idsParsers,
   type CrawlCandidatesFormat,
 } from "@zod-crawler/core";
 
@@ -102,6 +104,15 @@ const settingsSchema = cli.flagsSchema.transform((raw, ctx): CliSettings => {
       .map((id) => id.trim())
       .filter((id) => id.length > 0);
   } else {
+    const idsFileFormat = crawlCandidatesFormatFromExtension(raw.idsFile!);
+    if (idsFileFormat === undefined) {
+      ctx.addIssue({
+        code: "custom",
+        message: `--ids-file "${raw.idsFile}" has an unrecognized extension - expected one of: ${CRAWL_CANDIDATES_FORMATS.join(", ")} (or .yml).`,
+      });
+      return z.NEVER;
+    }
+
     let fileContents: string;
     try {
       fileContents = readFileSync(raw.idsFile!, "utf8");
@@ -114,10 +125,18 @@ const settingsSchema = cli.flagsSchema.transform((raw, ctx): CliSettings => {
       });
       return z.NEVER;
     }
-    rawIds = fileContents
-      .split("\n")
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0);
+
+    try {
+      rawIds = idsParsers[idsFileFormat](fileContents);
+    } catch (error) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Could not parse --ids-file "${raw.idsFile}" as ${idsFileFormat}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      });
+      return z.NEVER;
+    }
   }
 
   const ids = [...new Set(rawIds)];

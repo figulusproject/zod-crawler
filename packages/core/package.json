@@ -27,6 +27,7 @@
     "prepack": "cp ../../LICENSE ./LICENSE"
   },
   "dependencies": {
+    "yaml": "^2.9.0",
     "zod": "^4.4.3",
     "zod-transformers": "^1.0.0"
   },
