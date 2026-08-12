@@ -14,10 +14,12 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
+    "coverage": "vitest run --coverage",
     "sync-versions": "tsx scripts/sync-versions.ts",
     "docs": "docsify serve docs"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.10",
     "docsify-cli": "^5.0.0",
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.8.0",
