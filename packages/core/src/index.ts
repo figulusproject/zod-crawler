@@ -49,6 +49,7 @@ export type { CrawlCandidatesFormat } from "./crawlCandidateFormats.js";
 export {
   SCHEMA_NAME_PATTERN,
   DEFAULT_DELAY_MS,
+  MIN_DELAY_MS,
   DEFAULT_SCHEMA_NAME,
   DEFAULT_CONCURRENCY,
 } from "./crawlSettingsDefaults.js";

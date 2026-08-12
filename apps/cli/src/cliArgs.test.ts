@@ -143,7 +143,7 @@ describe("parseCliArgs", () => {
       "--url-template",
       "https://example.com/{id}.json",
       "--delay",
-      "0",
+      "100",
       "--schema-name",
       "MySchema",
     ]);
@@ -151,9 +151,21 @@ describe("parseCliArgs", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.settings.urlTemplate).toBe("https://example.com/{id}.json");
-      expect(result.settings.delayMs).toBe(0);
+      expect(result.settings.delayMs).toBe(100);
       expect(result.settings.schemaName).toBe("MySchema");
     }
+  });
+
+  it("rejects a --delay below the minimum", () => {
+    const result = parseCliArgs([
+      "--ids",
+      "a",
+      "--output",
+      "/tmp/out",
+      "--delay",
+      "50",
+    ]);
+    expect(result.ok).toBe(false);
   });
 
   it("rejects when neither --ids nor --ids-file is given", () => {

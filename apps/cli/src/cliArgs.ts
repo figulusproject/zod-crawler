@@ -5,6 +5,7 @@ import { numberString } from "zod-transformers";
 import {
   SCHEMA_NAME_PATTERN,
   DEFAULT_DELAY_MS,
+  MIN_DELAY_MS,
   DEFAULT_SCHEMA_NAME,
   DEFAULT_CONCURRENCY,
   CRAWL_CANDIDATES_FORMATS,
@@ -49,7 +50,7 @@ const cli = defineCli({
     },
     output: { schema: z.string().optional(), placeholder: "dir" },
     delay: {
-      schema: numberString({ integer: true, min: 0 }).optional(),
+      schema: numberString({ integer: true, min: MIN_DELAY_MS }).optional(),
       placeholder: "ms",
     },
     schemaName: {
