@@ -1,5 +1,8 @@
 # zod-crawler
 
+[![CI](https://github.com/figulusproject/zod-crawler/actions/workflows/ci.yml/badge.svg)](https://github.com/figulusproject/zod-crawler/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://zodcrawler.figulus.dev/coverage-badge.json)](https://github.com/figulusproject/zod-crawler/actions/workflows/ci.yml)
+
 > _Everyone has the right to resist occupation._
 
 Sometimes, you need to work with an API that isn't well-documented. `zod-crawler` is here to help!
@@ -19,26 +22,19 @@ npx @zod-crawler/cli \
 
 This writes an inferred `./out/schema.ts` and caches every fetched response
 under `./out/cache/`, so re-running the same command doesn't refetch. See
-the CLI package's README for the full flag list.
+the [docs site](https://zodcrawler.figulus.dev/) for the full flag list and
+everything else below.
 
 ## Apps/Packages
 
 - [CLI](/apps/cli/) | A full-featured CLI tool
+- [Web](/apps/web/) | A Docker-deployed single-page UI for the same pipeline
 - [Core Library](/packages/core/) | Can be called from other ECMAScript projects
 
 ## Zod Compatibility
 
-Designed for Zod v4 natively, not backwards-compatible with Zod v3 (uses new `z.uuid()`, `z.url()`, etc syntax).
+Designed for Zod v4 natively, not backwards-compatible with Zod v3 (uses new `z.uuid()`, `z.url()`, `z.int()`, etc syntax).
 
 ## Development
 
-This is an npm workspaces monorepo (`packages/*` for libraries, `apps/*`
-for runnable tools).
-
-```bash
-npm install
-npm run build       # tsc -b across the whole project
-npm run typecheck   # tsc -b --force
-npm test            # vitest run
-npm run format      # prettier --write .
-```
+See the [docs site](https://zodcrawler.figulus.dev/#/development) for the full monorepo dev commands.

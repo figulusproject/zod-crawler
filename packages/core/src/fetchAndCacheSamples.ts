@@ -1,15 +1,18 @@
-import { createHash } from "node:crypto";
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { JsonValue } from "./types.js";
+import {
+  bigintSafeStringify,
+  cacheFilePath,
+  ensureCacheDir,
+  fileExists,
+  recordManifestEntry,
+} from "./sampleCache.js";
+import { runBullmqFetchQueue } from "./bullmqFetchQueue.js";
+import type { FetchProgressEvent } from "./fetchProgressEvent.js";
 
-export interface FetchProgressEvent {
-  id: string;
-  index: number;
-  total: number;
-  status: "cached" | "fetching" | "done" | "error";
-  error?: string;
-}
+export { hasCachedSample } from "./sampleCache.js";
+export type { FetchProgressEvent } from "./fetchProgressEvent.js";
 
 export interface FetchAndCacheSamplesOptions {
   ids: string[];
@@ -19,59 +22,12 @@ export interface FetchAndCacheSamplesOptions {
   onProgress?: (event: FetchProgressEvent) => void;
   // When true (the default), a failed fetch is reported via onProgress and skipped rather than aborting the whole run.
   continueOnError?: boolean;
-}
-
-// bigint isn't JSON-serializable by default, and a pluggable fetchOne could plausibly produce one.
-function bigintSafeStringify(data: unknown): string {
-  return JSON.stringify(
-    data,
-    (_key, value) => (typeof value === "bigint" ? value.toString() : value),
-    2,
-  );
-}
-
-// ids can be arbitrary strings (including full URLs), not safe as filenames as-is; a content hash sidesteps that.
-function cacheFilePath(cacheDir: string, id: string): string {
-  const hash = createHash("sha256").update(id).digest("hex");
-  return path.join(cacheDir, `${hash}.json`);
-}
-
-async function fileExists(filePath: string): Promise<boolean> {
-  try {
-    await access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-// Exposed so callers outside the fetch loop (the crawl-candidates filter) can check cache membership using the same hash scheme.
-export async function hasCachedSample(
-  cacheDir: string,
-  id: string,
-): Promise<boolean> {
-  return fileExists(cacheFilePath(cacheDir, id));
-}
-
-// Best-effort record of which cache file corresponds to which id; never read back for cache-hit detection, so a corrupt manifest is never an actual bug.
-async function recordManifestEntry(
-  cacheDir: string,
-  id: string,
-  filename: string,
-): Promise<void> {
-  const manifestPath = path.join(cacheDir, "manifest.json");
-  try {
-    let manifest: Record<string, string> = {};
-    try {
-      manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-    } catch {
-      // Missing or corrupt, start fresh.
-    }
-    manifest[id] = filename;
-    await writeFile(manifestPath, JSON.stringify(manifest, null, 2));
-  } catch {
-    // Never let a manifest-write failure fail the actual fetch/cache.
-  }
+  // When set, fetches run through a BullMQ-backed queue (retries with backoff, per-domain cooldowns) against this Redis-protocol server instead of the plain sequential loop. Valkey recommended over Redis itself; see apps/cli/README.md's "Advanced queuing" section for why.
+  redisUrl?: string;
+  // Only meaningful alongside redisUrl; how many fetches the BullMQ worker runs at once.
+  concurrency?: number;
+  // Only meaningful alongside redisUrl; derives a deterministic queue name for reconnecting after a restart.
+  crawlId?: string;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -86,11 +42,29 @@ export async function fetchAndCacheSamples({
   fetchOne,
   onProgress,
   continueOnError = true,
+  redisUrl,
+  concurrency,
+  crawlId,
 }: FetchAndCacheSamplesOptions): Promise<Record<string, JsonValue>> {
-  const cacheDir = path.join(outputDir, "cache");
-  await mkdir(cacheDir, { recursive: true });
+  const cacheDir = await ensureCacheDir(outputDir);
 
   const samples: Record<string, JsonValue> = {};
+
+  if (redisUrl) {
+    await runBullmqFetchQueue({
+      ids,
+      cacheDir,
+      fetchOne,
+      redisUrl,
+      concurrency: concurrency ?? 1,
+      cooldownMs: delayMs,
+      continueOnError,
+      onProgress,
+      samples,
+      crawlId,
+    });
+    return samples;
+  }
 
   for (let index = 0; index < ids.length; index++) {
     const id = ids[index];

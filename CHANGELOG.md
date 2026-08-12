@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.0] - 2026-08-12
+
+### Added
+
+- `@zod-crawler/core`: `fetchAndCacheSamples` accepts an optional `redisUrl`, switching fetches to a [BullMQ](https://bullmq.io)-backed queue instead of the plain sequential one. Adds retries with exponential backoff for transient failures (429, 5xx, network errors), immediate skip-without-retry for permanent ones (any other 4xx, e.g. 404/403), a `concurrency` option, and per-domain cooldowns shared across every concurrent crawl hitting that domain (one clock per host, not one per crawl, and different hosts still don't wait on each other). `bullmq`/`ioredis` are optional peer dependencies, dynamically imported only when `redisUrl` is set, so the default queue never requires them.
+- `@zod-crawler/cli`: `--redis-url`/`REDIS_URL` and `--concurrency` flags, wiring the above into the CLI. Requires `npm install bullmq ioredis` yourself - not included in the published Docker image. The flag/env var name the wire protocol BullMQ/ioredis speak, not a recommendation to run Redis itself - [Valkey](https://valkey.io) is the recommended, drop-in-compatible server (see the CLI README's "Advanced queuing" section for why).
+- `@zod-crawler/web`: a `REDIS_URL` environment variable (alongside the existing `PORT`) switches every crawl on that server instance to the same BullMQ-backed queue. Same optional-install/Valkey recommendation as the CLI.
+- Docker images: both `figulusproject/zod-crawler-web` and `figulusproject/zod-crawler-cli` now publish two tags each. The default (`latest`, `<version>`) bundles `bullmq`/`ioredis` plus a background Valkey server with `REDIS_URL` preset to it, so retries/concurrency/per-domain cooldowns work out of the box with no external setup - its queue data isn't persisted across container restarts. The `slim`-tagged variant is the same image without the bundled Valkey (smaller), for pointing `REDIS_URL`/`--redis-url` at your own persistent instance instead.
+- `@zod-crawler/web`: with `REDIS_URL` set, the server now survives a restart mid-crawl. Each crawl registers itself in Redis and gets a BullMQ queue name derived from its own job id instead of a random one, so on startup the server reconnects to any queue still in flight from before it last stopped rather than losing that work. A new `CACHE_DIR` environment variable makes the on-disk sample cache durable across restarts too (point it at a named or mounted volume), so a resumed crawl only re-fetches whatever was still outstanding; without it, resume still reconnects the queue but re-fetches everything, since the default cache directory doesn't survive a container restart on its own.
+- `@zod-crawler/web`: the client now tracks multiple crawl jobs at once instead of just the most recent one. A sidebar lists every active or recently-finished job, with a pinned "New crawl" action so another can be started while one's still running, and a new `GET /api/crawls` endpoint lets the page reconnect to and catch up on every still-running or recently-finished job after a refresh, including per-id progress that already completed before the reconnect.
+- `@zod-crawler/cli`: a `--detach`/`-d` flag runs the crawl as a background process and returns immediately, printing its pid, output directory, and a log file path (`<output>/zod-crawler.log`) capturing everything it would otherwise print to the terminal. There's no subcommand yet to check on a detached run's status - the pid/log/output directory printed at start are the only way to check on it for now.
+- `@zod-crawler/core`: `crawlCandidatesToTxt`/`crawlCandidatesToJson`/`crawlCandidatesToYaml`/`crawlCandidatesToCsv`, converting a `CrawlCandidateField[]` into each of those formats, and the matching read side - `parseIdsFromTxt`/`parseIdsFromJson`/`parseIdsFromYaml`/`parseIdsFromCsv` and `crawlCandidatesFormatFromExtension` - which flattens any of the four back into a single id list with no per-field distinction.
+- `@zod-crawler/web`: the crawl candidates list gains global and per-field select-all/select-none controls, and a save-to-file button (`txt`/JSON/YAML/CSV) for the current selection, instead of only being re-feedable back into the ids field.
+- `@zod-crawler/cli`: `--crawl-candidates-format` (`txt`/`json`/`yaml`/`csv`, default `txt`) picks the format `--emit-crawl-candidates` writes its file in. Only valid alongside `--emit-crawl-candidates`.
+- `@zod-crawler/cli`: `--ids-file` now accepts `.json`, `.yaml`/`.yml`, and `.csv` in addition to `.txt`, sniffed from the file's extension, so a crawl candidates file written in any of those formats can be fed straight back in.
+- `@zod-crawler/web`: an "Upload file" control next to the ids field accepts a `.txt`/`.json`/`.yaml`/`.yml`/`.csv` file and merges its ids into the field, same formats as above.
+- Docs: a docsify-based documentation site under `docs/`, published at https://zodcrawler.figulus.dev, with dedicated pages for CLI/Web/Core usage, the full flag reference, crawling further, advanced queuing, and repo development.
+- Dev: test coverage tracking via vitest and `@vitest/coverage-v8` (`npm run coverage`), enforced as CI thresholds (95% statements/lines, 93% functions, 90% branches), plus a coverage badge alongside the CI/npm badges, auto-updated on pushes to `main`.
+
+### Changed
+
+- `@zod-crawler/cli`: upgraded to `zod-cli-flags@1.0.2`. The `Usage:` line printed on invalid arguments is now generated from the flag declarations instead of a separately hand-maintained string, so it can't drift out of sync with the actual flags - it can't yet express "exactly one of `--ids`/`--ids-file`" as a group like the old string did ([zod-cli-flags#7](https://github.com/figulusproject/zod-cli-flags/issues/7)).
+- `@zod-crawler/cli`, `@zod-crawler/web`, `@zod-crawler/core`, and the root README now link out to the docs site above for flags, Docker/advanced-queuing setup, and other details instead of duplicating them, so each README stays brief.
+- `@zod-crawler/cli`'s `--delay` and `@zod-crawler/web`'s `delayMs` now enforce a 100ms minimum instead of allowing 0, which disabled fetch pacing entirely.
+
 ## [1.0.1] - 2026-08-09
 
 ### Changed

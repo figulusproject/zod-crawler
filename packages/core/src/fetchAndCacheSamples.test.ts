@@ -37,19 +37,23 @@ describe("fetchAndCacheSamples", () => {
   it("delays between fetches, but not after the last one", async () => {
     const fetchOne = vi.fn(async (id: string) => ({ id }));
     const delayMs = 60;
+    // Asserting on the setTimeout call count/args, not elapsed wall-clock time: under v8 coverage instrumentation on a loaded CI runner, a tight elapsed-time ceiling is flaky even though only one delay actually fires.
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
 
-    const start = Date.now();
     await fetchAndCacheSamples({
       ids: ["a", "b"],
       outputDir,
       delayMs,
       fetchOne,
     });
-    const twoIdsElapsed = Date.now() - start;
 
     // One delay incurred (between "a" and "b"), not two.
-    expect(twoIdsElapsed).toBeGreaterThanOrEqual(delayMs - 10);
-    expect(twoIdsElapsed).toBeLessThan(delayMs * 2);
+    const delayCalls = setTimeoutSpy.mock.calls.filter(
+      ([, ms]) => ms === delayMs,
+    );
+    expect(delayCalls).toHaveLength(1);
+
+    setTimeoutSpy.mockRestore();
   });
 
   it("does not call fetchOne or delay on a cache hit", async () => {

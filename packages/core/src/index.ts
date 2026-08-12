@@ -31,9 +31,27 @@ export type { CrawlCandidateField } from "./findCrawlCandidates.js";
 export { findCrawlCandidates } from "./findCrawlCandidates.js";
 
 export {
+  crawlCandidatesToCsv,
+  crawlCandidatesToJson,
+  crawlCandidatesToTxt,
+  crawlCandidatesToYaml,
+  CRAWL_CANDIDATES_FORMATS,
+  crawlCandidatesFormatters,
+  parseIdsFromTxt,
+  parseIdsFromJson,
+  parseIdsFromYaml,
+  parseIdsFromCsv,
+  idsParsers,
+  crawlCandidatesFormatFromExtension,
+} from "./crawlCandidateFormats.js";
+export type { CrawlCandidatesFormat } from "./crawlCandidateFormats.js";
+
+export {
   SCHEMA_NAME_PATTERN,
   DEFAULT_DELAY_MS,
+  MIN_DELAY_MS,
   DEFAULT_SCHEMA_NAME,
+  DEFAULT_CONCURRENCY,
 } from "./crawlSettingsDefaults.js";
 
 export type {
@@ -45,4 +63,11 @@ export {
   hasCachedSample,
 } from "./fetchAndCacheSamples.js";
 
-export { createUrlFetcher } from "./urlFetcher.js";
+export { createUrlFetcher, FetchHttpError } from "./urlFetcher.js";
+
+export type { ActiveCrawlEntry } from "./crawlRegistry.js";
+export {
+  registerActiveCrawl,
+  unregisterActiveCrawl,
+  listActiveCrawls,
+} from "./crawlRegistry.js";

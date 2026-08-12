@@ -15,6 +15,7 @@ describe("parseCliArgs", () => {
       expect(result.settings.schemaName).toBe("InferredSchema");
       expect(result.settings.urlTemplate).toBeUndefined();
       expect(result.settings.emitCrawlCandidates).toBe(false);
+      expect(result.settings.crawlCandidatesFormat).toBe("txt");
       expect(result.settings.useZodTransformers).toBe(false);
       expect(result.settings.stopOnError).toBe(false);
     }
@@ -32,7 +33,57 @@ describe("parseCliArgs", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.settings.emitCrawlCandidates).toBe(true);
+      expect(result.settings.crawlCandidatesFormat).toBe("txt");
     }
+  });
+
+  describe("--crawl-candidates-format", () => {
+    it("sets crawlCandidatesFormat when combined with --emit-crawl-candidates", () => {
+      const result = parseCliArgs([
+        "--ids",
+        "a",
+        "--output",
+        "/tmp/out",
+        "--emit-crawl-candidates",
+        "--crawl-candidates-format",
+        "yaml",
+      ]);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.settings.crawlCandidatesFormat).toBe("yaml");
+      }
+    });
+
+    it("rejects --crawl-candidates-format without --emit-crawl-candidates", () => {
+      const result = parseCliArgs([
+        "--ids",
+        "a",
+        "--output",
+        "/tmp/out",
+        "--crawl-candidates-format",
+        "yaml",
+      ]);
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.message).toMatch(/--crawl-candidates-format/);
+      }
+    });
+
+    it("rejects an unsupported format", () => {
+      const result = parseCliArgs([
+        "--ids",
+        "a",
+        "--output",
+        "/tmp/out",
+        "--emit-crawl-candidates",
+        "--crawl-candidates-format",
+        "xml",
+      ]);
+
+      expect(result.ok).toBe(false);
+    });
   });
 
   it("sets useZodTransformers when --zod-transformers is passed", () => {
@@ -65,6 +116,24 @@ describe("parseCliArgs", () => {
     }
   });
 
+  it("leaves detach false by default", () => {
+    const result = parseCliArgs(["--ids", "a", "--output", "/tmp/out"]);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.settings.detach).toBe(false);
+    }
+  });
+
+  it("sets detach when --detach or its -d alias is passed", () => {
+    for (const flag of ["--detach", "-d"]) {
+      const result = parseCliArgs(["--ids", "a", "--output", "/tmp/out", flag]);
+
+      expect(result.ok, `${flag} should parse`).toBe(true);
+      if (result.ok) expect(result.settings.detach).toBe(true);
+    }
+  });
+
   it("applies --url-template, --delay, and --schema-name overrides", () => {
     const result = parseCliArgs([
       "--ids",
@@ -74,7 +143,7 @@ describe("parseCliArgs", () => {
       "--url-template",
       "https://example.com/{id}.json",
       "--delay",
-      "0",
+      "100",
       "--schema-name",
       "MySchema",
     ]);
@@ -82,9 +151,21 @@ describe("parseCliArgs", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.settings.urlTemplate).toBe("https://example.com/{id}.json");
-      expect(result.settings.delayMs).toBe(0);
+      expect(result.settings.delayMs).toBe(100);
       expect(result.settings.schemaName).toBe("MySchema");
     }
+  });
+
+  it("rejects a --delay below the minimum", () => {
+    const result = parseCliArgs([
+      "--ids",
+      "a",
+      "--output",
+      "/tmp/out",
+      "--delay",
+      "50",
+    ]);
+    expect(result.ok).toBe(false);
   });
 
   it("rejects when neither --ids nor --ids-file is given", () => {
@@ -169,6 +250,120 @@ describe("parseCliArgs", () => {
     expect(result.ok).toBe(false);
   });
 
+  describe("--redis-url / --concurrency", () => {
+    const originalRedisUrl = process.env.REDIS_URL;
+
+    afterEach(() => {
+      if (originalRedisUrl === undefined) delete process.env.REDIS_URL;
+      else process.env.REDIS_URL = originalRedisUrl;
+    });
+
+    it("leaves redisUrl/concurrency undefined by default", () => {
+      delete process.env.REDIS_URL;
+      const result = parseCliArgs(["--ids", "a", "--output", "/tmp/out"]);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.settings.redisUrl).toBeUndefined();
+        expect(result.settings.concurrency).toBeUndefined();
+      }
+    });
+
+    it("sets redisUrl from --redis-url, defaulting concurrency to 1", () => {
+      delete process.env.REDIS_URL;
+      const result = parseCliArgs([
+        "--ids",
+        "a",
+        "--output",
+        "/tmp/out",
+        "--redis-url",
+        "redis://localhost:6379",
+      ]);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.settings.redisUrl).toBe("redis://localhost:6379");
+        expect(result.settings.concurrency).toBe(1);
+      }
+    });
+
+    it("falls back to the REDIS_URL environment variable", () => {
+      process.env.REDIS_URL = "redis://env-host:6379";
+      const result = parseCliArgs(["--ids", "a", "--output", "/tmp/out"]);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.settings.redisUrl).toBe("redis://env-host:6379");
+      }
+    });
+
+    it("prefers --redis-url over the REDIS_URL environment variable", () => {
+      process.env.REDIS_URL = "redis://env-host:6379";
+      const result = parseCliArgs([
+        "--ids",
+        "a",
+        "--output",
+        "/tmp/out",
+        "--redis-url",
+        "redis://flag-host:6379",
+      ]);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.settings.redisUrl).toBe("redis://flag-host:6379");
+      }
+    });
+
+    it("applies --concurrency when a Redis URL is configured", () => {
+      const result = parseCliArgs([
+        "--ids",
+        "a",
+        "--output",
+        "/tmp/out",
+        "--redis-url",
+        "redis://localhost:6379",
+        "--concurrency",
+        "4",
+      ]);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.settings.concurrency).toBe(4);
+    });
+
+    it("rejects --concurrency without a Redis URL (flag or env)", () => {
+      delete process.env.REDIS_URL;
+      const result = parseCliArgs([
+        "--ids",
+        "a",
+        "--output",
+        "/tmp/out",
+        "--concurrency",
+        "4",
+      ]);
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.message).toMatch(/--concurrency/);
+    });
+
+    it("rejects a non-integer or non-positive --concurrency", () => {
+      for (const bad of ["abc", "0", "-1", "1.5"]) {
+        const result = parseCliArgs([
+          "--ids",
+          "a",
+          "--output",
+          "/tmp/out",
+          "--redis-url",
+          "redis://localhost:6379",
+          "--concurrency",
+          bad,
+        ]);
+        expect(result.ok, `--concurrency ${bad} should be rejected`).toBe(
+          false,
+        );
+      }
+    });
+  });
+
   describe("--ids-file", () => {
     let dir: string;
 
@@ -199,6 +394,71 @@ describe("parseCliArgs", () => {
         "--output",
         "/tmp/out",
       ]);
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.message).toMatch(/--ids-file/);
+    });
+
+    it("reads ids from a .json file, flattening every field", async () => {
+      const file = path.join(dir, "ids.json");
+      await writeFile(
+        file,
+        JSON.stringify({ "authors.key": ["a", "b"], "publisher.key": ["c"] }),
+      );
+
+      const result = parseCliArgs(["--ids-file", file, "--output", "/tmp/out"]);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.settings.ids).toEqual(["a", "b", "c"]);
+      }
+    });
+
+    it("reads ids from a .yaml file, flattening every field", async () => {
+      const file = path.join(dir, "ids.yaml");
+      await writeFile(
+        file,
+        "authors.key:\n  - a\n  - b\npublisher.key:\n  - c\n",
+      );
+
+      const result = parseCliArgs(["--ids-file", file, "--output", "/tmp/out"]);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.settings.ids).toEqual(["a", "b", "c"]);
+      }
+    });
+
+    it("reads ids from a .csv file, dropping the header row", async () => {
+      const file = path.join(dir, "ids.csv");
+      await writeFile(file, "authors.key,publisher.key\na,c\nb,\n");
+
+      const result = parseCliArgs(["--ids-file", file, "--output", "/tmp/out"]);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.settings.ids).toEqual(["a", "c", "b"]);
+      }
+    });
+
+    it("rejects an --ids-file with an unrecognized extension", async () => {
+      const file = path.join(dir, "ids.xml");
+      await writeFile(file, "<ids/>");
+
+      const result = parseCliArgs(["--ids-file", file, "--output", "/tmp/out"]);
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.message).toMatch(/--ids-file/);
+        expect(result.message).toMatch(/unrecognized extension/);
+      }
+    });
+
+    it("reports a clear error when a .json --ids-file isn't valid JSON", async () => {
+      const file = path.join(dir, "ids.json");
+      await writeFile(file, "not json");
+
+      const result = parseCliArgs(["--ids-file", file, "--output", "/tmp/out"]);
 
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.message).toMatch(/--ids-file/);
