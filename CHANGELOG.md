@@ -21,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `@zod-crawler/cli`: `--ids-file` now accepts `.json`, `.yaml`/`.yml`, and `.csv` in addition to `.txt`, sniffed from the file's extension, so a crawl candidates file written in any of those formats can be fed straight back in.
 - `@zod-crawler/web`: an "Upload file" control next to the ids field accepts a `.txt`/`.json`/`.yaml`/`.yml`/`.csv` file and merges its ids into the field, same formats as above.
 - Docs: a docsify-based documentation site under `docs/`, published at https://zodcrawler.figulus.dev, with dedicated pages for CLI/Web/Core usage, the full flag reference, crawling further, advanced queuing, and repo development.
+- Dev: test coverage tracking via vitest and `@vitest/coverage-v8` (`npm run coverage`), enforced as CI thresholds (95% statements/lines, 93% functions, 90% branches), plus a coverage badge alongside the CI/npm badges, auto-updated on pushes to `main`.
 
 ### Changed
 

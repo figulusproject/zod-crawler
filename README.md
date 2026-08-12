@@ -1,5 +1,8 @@
 # zod-crawler
 
+[![CI](https://github.com/figulusproject/zod-crawler/actions/workflows/ci.yml/badge.svg)](https://github.com/figulusproject/zod-crawler/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://zodcrawler.figulus.dev/coverage-badge.json)](https://github.com/figulusproject/zod-crawler/actions/workflows/ci.yml)
+
 > _Everyone has the right to resist occupation._
 
 Sometimes, you need to work with an API that isn't well-documented. `zod-crawler` is here to help!
