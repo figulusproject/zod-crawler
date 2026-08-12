@@ -1,6 +1,7 @@
 # @zod-crawler/web
 
 [![CI](https://github.com/figulusproject/zod-crawler/actions/workflows/ci.yml/badge.svg)](https://github.com/figulusproject/zod-crawler/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://zodcrawler.figulus.dev/coverage-badge.json)](https://github.com/figulusproject/zod-crawler/actions/workflows/ci.yml)
 [![Docker](https://img.shields.io/docker/v/figulusproject/zod-crawler-web?sort=semver&label=docker)](https://hub.docker.com/r/figulusproject/zod-crawler-web)
 
 > _Everyone has the right to resist occupation._

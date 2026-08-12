@@ -9,6 +9,8 @@ permissions:
 
 jobs:
   test:
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -39,6 +41,37 @@ jobs:
 
       - name: Test
         run: npm test
+
+      - name: Coverage
+        if: matrix.node-version == 24
+        run: npm run coverage
+
+      - name: Update coverage badge
+        if: matrix.node-version == 24 && github.ref == 'refs/heads/main'
+        run: |
+          node -e "
+            const fs = require('fs');
+            const { total } = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
+            const pct = total.lines.pct;
+            const color =
+              pct >= 90 ? 'brightgreen' :
+              pct >= 80 ? 'green' :
+              pct >= 70 ? 'yellowgreen' :
+              pct >= 50 ? 'orange' : 'red';
+            fs.writeFileSync('docs/coverage-badge.json', JSON.stringify({
+              schemaVersion: 1,
+              label: 'coverage',
+              message: pct + '%',
+              color,
+            }));
+          "
+          if ! git diff --quiet -- docs/coverage-badge.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add docs/coverage-badge.json
+            git commit -m "update coverage badge [skip ci]"
+            git push
+          fi
 
       - name: Format check
         run: npm run format:check
