@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getJob, listJobs, startCrawlJob } from "./crawlJobs.js";
+import {
+  getJob,
+  listJobs,
+  resumeActiveCrawls,
+  startCrawlJob,
+} from "./crawlJobs.js";
 import type { CrawlCompleteEvent, CrawlErrorEvent } from "../shared/events.js";
 import type { ResolvedCrawlRequest } from "./requestSchema.js";
 
@@ -135,6 +140,33 @@ describe("crawlJobs", () => {
     expect(error?.message).toMatch(/Failed to fetch id "missing"/);
   });
 
+  it("reports validation failures for a sample that doesn't match the inferred schema", async () => {
+    // classifyRawString's date-prefix regex has no trailing anchor, so this tags as "coerce.date" even though the month/day are out of range and z.coerce.date() rejects it at validation time.
+    const books: Record<string, unknown> = {
+      a: { title: "Book A", releasedAt: "2026-01-01" },
+      b: { title: "Book B", releasedAt: "2026-13-45garbage" },
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const id = url.replace("https://example.com/", "").replace(".json", "");
+        return jsonResponse(books[id]);
+      }),
+    );
+
+    const jobId = startCrawlJob(baseRequest({}));
+    const job = getJob(jobId);
+
+    const complete = await new Promise<CrawlCompleteEvent>((resolve) =>
+      job!.emitter.once("complete", resolve),
+    );
+
+    expect(complete.validation.total).toBe(2);
+    expect(complete.validation.failures).toEqual([
+      { id: "b", error: expect.any(String) as string },
+    ]);
+  });
+
   it("lists an in-flight job so a refreshed page can find it", async () => {
     vi.stubGlobal(
       "fetch",
@@ -152,5 +184,9 @@ describe("crawlJobs", () => {
       delayMs: 0,
       urlTemplate: "https://example.com/{id}.json",
     });
+  });
+
+  it("does nothing when REDIS_URL isn't configured", async () => {
+    await expect(resumeActiveCrawls()).resolves.toBeUndefined();
   });
 });

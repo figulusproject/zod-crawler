@@ -1,8 +1,29 @@
+import { spawn } from "node:child_process";
+import { EventEmitter } from "node:events";
 import { readdir, readFile, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runCli } from "./runCli.js";
+
+vi.mock("node:child_process", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:child_process")>()),
+  spawn: vi.fn(),
+}));
+
+class FakeChild extends EventEmitter {
+  pid = 4321;
+  unref = vi.fn();
+}
+
+// spawn's "spawn"/"error" events fire on a later tick, same as the real child_process API - emitting synchronously would fire before runDetached's listeners are attached.
+function queueSpawnEvent(
+  child: FakeChild,
+  event: "spawn" | "error",
+  arg?: Error,
+) {
+  setImmediate(() => child.emit(event, arg));
+}
 
 function jsonResponse(body: unknown) {
   return {
@@ -226,6 +247,55 @@ describe("runCli", () => {
     expect(code).toBe(1);
   });
 
+  it("writes the schema and reports failures when validation fails for some samples", async () => {
+    // classifyRawString's date-prefix regex has no trailing anchor, so this tags as "coerce.date" even though the month/day are out of range and z.coerce.date() rejects it at validation time.
+    const books: Record<string, unknown> = {
+      a: { title: "Book A", releasedAt: "2026-01-01" },
+      b: { title: "Book B", releasedAt: "2026-13-45garbage" },
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const id = url.replace("https://example.com/", "").replace(".json", "");
+        return jsonResponse(books[id]);
+      }),
+    );
+    const consoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    const code = await runCli([
+      "--ids",
+      "a,b",
+      "--output",
+      outputDir,
+      "--delay",
+      "100",
+      "--url-template",
+      "https://example.com/{id}.json",
+    ]);
+
+    expect(code).toBe(1);
+    expect(
+      consoleLog.mock.calls.some((call) =>
+        String(call[0]).includes("1/2 sample(s) failed validation:"),
+      ),
+    ).toBe(true);
+    expect(
+      consoleError.mock.calls.some((call) => call[0] === "=== b ==="),
+    ).toBe(true);
+
+    const schemaSource = await readFile(
+      path.join(outputDir, "schema.ts"),
+      "utf8",
+    );
+    expect(schemaSource).toContain("export const InferredSchema");
+
+    consoleLog.mockRestore();
+    consoleError.mockRestore();
+  });
+
   it("returns a non-zero exit code and prints usage on invalid args", async () => {
     const consoleError = vi
       .spyOn(console, "error")
@@ -236,5 +306,158 @@ describe("runCli", () => {
     expect(code).toBe(1);
     expect(consoleError).toHaveBeenCalled();
     consoleError.mockRestore();
+  });
+
+  describe("--detach", () => {
+    afterEach(() => {
+      vi.mocked(spawn).mockReset();
+    });
+
+    it("re-spawns itself with the equivalent flags and reports the child's pid and paths", async () => {
+      const child = new FakeChild();
+      vi.mocked(spawn).mockImplementation((..._args) => {
+        queueSpawnEvent(child, "spawn");
+        return child as never;
+      });
+      const consoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      const code = await runCli([
+        "--ids",
+        "a,b",
+        "--output",
+        outputDir,
+        "--delay",
+        "500",
+        "--url-template",
+        "https://example.com/{id}.json",
+        "--schema-name",
+        "BookSchema",
+        "--emit-crawl-candidates",
+        "--crawl-candidates-format",
+        "json",
+        "--zod-transformers",
+        "--stop-on-error",
+        "--redis-url",
+        "redis://localhost:6379",
+        "--concurrency",
+        "3",
+        "--detach",
+      ]);
+
+      expect(code).toBe(0);
+      expect(spawn).toHaveBeenCalledTimes(1);
+      const [command, args] = vi.mocked(spawn).mock.calls[0];
+      expect(command).toBe(process.execPath);
+      expect(args).toEqual(
+        expect.arrayContaining([
+          "--output",
+          outputDir,
+          "--url-template",
+          "https://example.com/{id}.json",
+          "--delay",
+          "500",
+          "--schema-name",
+          "BookSchema",
+          "--emit-crawl-candidates",
+          "--crawl-candidates-format",
+          "json",
+          "--zod-transformers",
+          "--stop-on-error",
+          "--redis-url",
+          "redis://localhost:6379",
+          "--concurrency",
+          "3",
+        ]),
+      );
+
+      const idsFilePath = args[args.indexOf("--ids-file") + 1];
+      expect(await readFile(idsFilePath, "utf8")).toBe("a\nb\n");
+      await rm(idsFilePath, { force: true });
+
+      const logPath = path.join(outputDir, "zod-crawler.log");
+      expect(await readFile(logPath, "utf8")).toBe("");
+      expect(child.unref).toHaveBeenCalled();
+      expect(
+        consoleLog.mock.calls.some((call) =>
+          String(call[0]).includes(
+            `Started crawl in the background (pid ${child.pid})`,
+          ),
+        ),
+      ).toBe(true);
+
+      consoleLog.mockRestore();
+    });
+
+    it("omits optional flags that were not set", async () => {
+      const child = new FakeChild();
+      vi.mocked(spawn).mockImplementation((..._args) => {
+        queueSpawnEvent(child, "spawn");
+        return child as never;
+      });
+      vi.spyOn(console, "log").mockImplementation(() => {});
+
+      const code = await runCli([
+        "--ids",
+        "a",
+        "--output",
+        outputDir,
+        "--delay",
+        "100",
+        "--detach",
+      ]);
+
+      expect(code).toBe(0);
+      const args = vi.mocked(spawn).mock.calls[0][1];
+      for (const flag of [
+        "--url-template",
+        "--emit-crawl-candidates",
+        "--crawl-candidates-format",
+        "--zod-transformers",
+        "--stop-on-error",
+        "--redis-url",
+        "--concurrency",
+      ]) {
+        expect(args).not.toContain(flag);
+      }
+
+      const idsFilePath = args[args.indexOf("--ids-file") + 1];
+      await rm(idsFilePath, { force: true });
+
+      vi.mocked(console.log).mockRestore();
+    });
+
+    it("returns 1 and logs an error when the child fails to spawn", async () => {
+      const child = new FakeChild();
+      vi.mocked(spawn).mockImplementation((..._args) => {
+        queueSpawnEvent(child, "error", new Error("boom"));
+        return child as never;
+      });
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      const code = await runCli([
+        "--ids",
+        "a",
+        "--output",
+        outputDir,
+        "--delay",
+        "100",
+        "--detach",
+      ]);
+
+      expect(code).toBe(1);
+      expect(
+        consoleError.mock.calls.some((call) =>
+          String(call[0]).includes("Failed to start detached crawl: boom"),
+        ),
+      ).toBe(true);
+
+      const args = vi.mocked(spawn).mock.calls[0][1];
+      const idsFilePath = args[args.indexOf("--ids-file") + 1];
+      await rm(idsFilePath, { force: true });
+
+      consoleError.mockRestore();
+    });
   });
 });
