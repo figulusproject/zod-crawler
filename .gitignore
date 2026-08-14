@@ -9,3 +9,5 @@ packages/*/LICENSE
 apps/*/LICENSE
 .wrangler/
 worker-configuration.d.ts
+.vercel
+.env*
