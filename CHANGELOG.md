@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - CI workflow (`ci.yml`) and `apps/cli`/`apps/web`'s Docker images now run on Node 22/24/26 instead of 20/22/24.
+- `@zod-crawler/cli`: upgraded from `zod-cli-flags@1.0.2` to its renamed successor, `zod-commands@1.1.1`. `--ids`/`--ids-file` now use `exclusiveGroups` to declare "exactly one of" instead of a hand-written check in the parse transform, so `cli.usage` renders it as `(--ids <value> | --ids-file <value>)`.
 
 ## [1.1.0] - 2026-08-12
 

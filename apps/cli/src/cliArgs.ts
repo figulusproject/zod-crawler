@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { z } from "zod";
-import { defineCli } from "zod-cli-flags";
+import { defineCli } from "zod-commands";
 import { numberString } from "zod-transformers";
 import {
   SCHEMA_NAME_PATTERN,
@@ -33,9 +33,6 @@ export type ParseCliArgsResult =
   { ok: true; settings: CliSettings } | { ok: false; message: string };
 
 const cli = defineCli({
-  // The auto-generated usage below can't express "exactly one of --ids/--ids-file" as a group the
-  // way the old hand-written string did - zod-cli-flags has no flag-grouping syntax yet
-  // (https://github.com/figulusproject/zod-cli-flags/issues/7).
   flags: {
     ids: { schema: z.string().optional(), placeholder: "id1,id2,..." },
     idsFile: {
@@ -85,19 +82,12 @@ const cli = defineCli({
     },
     detach: { schema: z.boolean().default(false), short: "d" },
   },
+  exclusiveGroups: [{ flags: ["ids", "idsFile"], required: true }],
 });
 
 export const usage = cli.usage;
 
 const settingsSchema = cli.flagsSchema.transform((raw, ctx): CliSettings => {
-  if ((raw.ids === undefined) === (raw.idsFile === undefined)) {
-    ctx.addIssue({
-      code: "custom",
-      message: "Exactly one of --ids or --ids-file is required.",
-    });
-    return z.NEVER;
-  }
-
   let rawIds: string[];
   if (raw.ids !== undefined) {
     rawIds = raw.ids
