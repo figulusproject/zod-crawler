@@ -2,6 +2,8 @@
   "files": [],
   "references": [
     { "path": "packages/core" },
+    { "path": "packages/pipeline" },
+    { "path": "packages/pipeline-node" },
     { "path": "apps/cli" },
     { "path": "apps/web/tsconfig.server.json" }
   ]

@@ -1,80 +1,45 @@
-import { readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
-import type { JsonValue } from "./types.js";
-import {
-  bigintSafeStringify,
-  cacheFilePath,
-  ensureCacheDir,
-  fileExists,
-  recordManifestEntry,
-} from "./sampleCache.js";
-import { runBullmqFetchQueue } from "./bullmqFetchQueue.js";
+import type { JsonValue } from "@zod-crawler/core";
+import { bigintSafeStringify, type SampleCache } from "./sampleCache.js";
+import { hashId } from "./hashId.js";
 import type { FetchProgressEvent } from "./fetchProgressEvent.js";
 
-export { hasCachedSample } from "./sampleCache.js";
 export type { FetchProgressEvent } from "./fetchProgressEvent.js";
 
 export interface FetchAndCacheSamplesOptions {
   ids: string[];
-  outputDir: string;
+  cache: SampleCache;
   delayMs: number;
   fetchOne: (id: string) => Promise<unknown>;
   onProgress?: (event: FetchProgressEvent) => void;
   // When true (the default), a failed fetch is reported via onProgress and skipped rather than aborting the whole run.
   continueOnError?: boolean;
-  // When set, fetches run through a BullMQ-backed queue (retries with backoff, per-domain cooldowns) against this Redis-protocol server instead of the plain sequential loop. Valkey recommended over Redis itself; see apps/cli/README.md's "Advanced queuing" section for why.
-  redisUrl?: string;
-  // Only meaningful alongside redisUrl; how many fetches the BullMQ worker runs at once.
-  concurrency?: number;
-  // Only meaningful alongside redisUrl; derives a deterministic queue name for reconnecting after a restart.
-  crawlId?: string;
 }
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// A miss re-parses what was just written to disk, so a cache hit and miss always produce byte-identical shapes; a partial failure leaves fetched ids cached for a resumed re-run.
+// A miss re-parses what was just written to the cache, so a cache hit and miss always produce byte-identical shapes; a partial failure leaves fetched ids cached for a resumed re-run. For a BullMQ-backed queue instead of this plain sequential loop, see @zod-crawler/pipeline-node's runBullmqFetchQueue - a caller picks between the two, this function has no knowledge of Redis.
 export async function fetchAndCacheSamples({
   ids,
-  outputDir,
+  cache,
   delayMs,
   fetchOne,
   onProgress,
   continueOnError = true,
-  redisUrl,
-  concurrency,
-  crawlId,
 }: FetchAndCacheSamplesOptions): Promise<Record<string, JsonValue>> {
-  const cacheDir = await ensureCacheDir(outputDir);
-
   const samples: Record<string, JsonValue> = {};
-
-  if (redisUrl) {
-    await runBullmqFetchQueue({
-      ids,
-      cacheDir,
-      fetchOne,
-      redisUrl,
-      concurrency: concurrency ?? 1,
-      cooldownMs: delayMs,
-      continueOnError,
-      onProgress,
-      samples,
-      crawlId,
-    });
-    return samples;
-  }
 
   for (let index = 0; index < ids.length; index++) {
     const id = ids[index];
-    const cachePath = cacheFilePath(cacheDir, id);
+    const key = await hashId(id);
     const total = ids.length;
     const isLast = index === ids.length - 1;
 
-    if (await fileExists(cachePath)) {
+    const cached = await cache.get(key);
+    if (cached !== undefined) {
       onProgress?.({ id, index, total, status: "cached" });
-      samples[id] = JSON.parse(await readFile(cachePath, "utf8"));
+      samples[id] = JSON.parse(cached);
       continue;
     }
 
@@ -97,8 +62,7 @@ export async function fetchAndCacheSamples({
     }
 
     const serialized = bigintSafeStringify(data);
-    await writeFile(cachePath, serialized);
-    await recordManifestEntry(cacheDir, id, path.basename(cachePath));
+    await cache.set(key, serialized);
 
     samples[id] = JSON.parse(serialized);
     onProgress?.({ id, index, total, status: "done" });

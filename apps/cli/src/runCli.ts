@@ -9,15 +9,22 @@ import prettier from "prettier";
 import {
   createUrlFetcher,
   crawlCandidatesFormatters,
-  fetchAndCacheSamples,
   findCrawlCandidates,
-  hasCachedSample,
   inferSchema,
   validateSamples,
   type CrawlCandidateField,
   type CrawlCandidatesFormat,
-  type FetchProgressEvent,
 } from "@zod-crawler/core";
+import {
+  fetchAndCacheSamples,
+  hasCachedSample,
+  type FetchProgressEvent,
+  type SampleCache,
+} from "@zod-crawler/pipeline";
+import {
+  createNodeSampleCache,
+  runBullmqFetchQueue,
+} from "@zod-crawler/pipeline-node";
 import { parseCliArgs, usage, type CliSettings } from "./cliArgs.js";
 
 // Prints fetch/cache status lines to stderr; the web app renders the same FetchProgressEvent stream as SSE messages instead.
@@ -49,18 +56,30 @@ export async function runCli(argv: string[]): Promise<number> {
 
   await mkdir(settings.outputDir, { recursive: true });
 
+  const cache = createNodeSampleCache(settings.outputDir);
+  const fetchOne = createUrlFetcher(settings.urlTemplate);
+
   let samples;
   try {
-    samples = await fetchAndCacheSamples({
-      ids: settings.ids,
-      outputDir: settings.outputDir,
-      delayMs: settings.delayMs,
-      fetchOne: createUrlFetcher(settings.urlTemplate),
-      onProgress: logFetchProgress,
-      continueOnError: !settings.stopOnError,
-      redisUrl: settings.redisUrl,
-      concurrency: settings.concurrency,
-    });
+    samples = settings.redisUrl
+      ? await runBullmqFetchQueue({
+          ids: settings.ids,
+          cache,
+          fetchOne,
+          onProgress: logFetchProgress,
+          continueOnError: !settings.stopOnError,
+          redisUrl: settings.redisUrl,
+          concurrency: settings.concurrency,
+          cooldownMs: settings.delayMs,
+        })
+      : await fetchAndCacheSamples({
+          ids: settings.ids,
+          cache,
+          delayMs: settings.delayMs,
+          fetchOne,
+          onProgress: logFetchProgress,
+          continueOnError: !settings.stopOnError,
+        });
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     return 1;
@@ -116,6 +135,7 @@ export async function runCli(argv: string[]): Promise<number> {
       samples,
       settings.ids,
       settings.outputDir,
+      cache,
       settings.crawlCandidatesFormat,
     );
   }
@@ -185,17 +205,17 @@ async function writeCrawlCandidates(
   samples: Awaited<ReturnType<typeof fetchAndCacheSamples>>,
   seedIds: readonly string[],
   outputDir: string,
+  cache: SampleCache,
   format: CrawlCandidatesFormat,
 ): Promise<void> {
   const seeds = new Set(seedIds);
-  const cacheDir = path.join(outputDir, "cache");
 
   const groups: CrawlCandidateField[] = [];
   for (const group of findCrawlCandidates(samples)) {
     const values: string[] = [];
     for (const value of group.values) {
       if (seeds.has(value)) continue;
-      if (await hasCachedSample(cacheDir, value)) continue;
+      if (await hasCachedSample(cache, value)) continue;
       values.push(value);
     }
     if (values.length > 0) groups.push({ path: group.path, values });

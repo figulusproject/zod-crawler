@@ -1,7 +1,7 @@
 {
-  "name": "@zod-crawler/core",
+  "name": "@zod-crawler/pipeline",
   "version": "1.1.0",
-  "description": "Infers a Zod v4 schema from a set of sampled JSON values.",
+  "description": "Portable fetch-and-cache orchestration for zod-crawler's schema-inference pipeline.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -9,10 +9,6 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./crawlCandidateFormats": {
-      "types": "./dist/crawlCandidateFormats.d.ts",
-      "import": "./dist/crawlCandidateFormats.js"
     }
   },
   "files": [
@@ -27,9 +23,7 @@
     "prepack": "cp ../../LICENSE ./LICENSE"
   },
   "dependencies": {
-    "yaml": "^2.9.0",
-    "zod": "^4.4.3",
-    "zod-transformers": "^1.0.0"
+    "@zod-crawler/core": "^1.1.0"
   },
   "devDependencies": {
     "@types/node": "^22"
@@ -37,7 +31,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/figulusproject/zod-crawler",
-    "directory": "packages/core"
+    "directory": "packages/pipeline"
   },
   "author": "The Figulus Project",
   "license": "MIT"

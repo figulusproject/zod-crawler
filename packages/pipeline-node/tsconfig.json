@@ -5,11 +5,7 @@
     "rootDir": "src",
     "types": ["node"]
   },
-  "references": [
-    { "path": "../../packages/core" },
-    { "path": "../../packages/pipeline" },
-    { "path": "../../packages/pipeline-node" }
-  ],
+  "references": [{ "path": "../core" }, { "path": "../pipeline" }],
   "include": ["src"],
   "exclude": ["src/**/*.test.ts"]
 }

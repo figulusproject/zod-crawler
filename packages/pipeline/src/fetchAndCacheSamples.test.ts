@@ -1,29 +1,28 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  fetchAndCacheSamples,
-  hasCachedSample,
-} from "./fetchAndCacheSamples.js";
+import { describe, expect, it, vi } from "vitest";
+import { fetchAndCacheSamples } from "./fetchAndCacheSamples.js";
+import { hasCachedSample } from "./hasCachedSample.js";
+import type { SampleCache } from "./sampleCache.js";
+
+// A plain in-memory SampleCache, standing in for any real implementation (Node fs-backed, browser Cache API, ...) - fetchAndCacheSamples only ever talks to the SampleCache interface, so this is enough to exercise its own logic without depending on @zod-crawler/pipeline-node.
+function createMemorySampleCache(): SampleCache {
+  const store = new Map<string, string>();
+  return {
+    async get(key) {
+      return store.get(key);
+    },
+    async set(key, value) {
+      store.set(key, value);
+    },
+  };
+}
 
 describe("fetchAndCacheSamples", () => {
-  let outputDir: string;
-
-  beforeEach(async () => {
-    outputDir = await mkdtemp(path.join(tmpdir(), "fetch-cache-test-"));
-  });
-
-  afterEach(async () => {
-    await rm(outputDir, { recursive: true, force: true });
-  });
-
   it("fetches every id on a fresh run, in order", async () => {
     const fetchOne = vi.fn(async (id: string) => ({ id }));
 
     const samples = await fetchAndCacheSamples({
       ids: ["a", "b"],
-      outputDir,
+      cache: createMemorySampleCache(),
       delayMs: 0,
       fetchOne,
     });
@@ -42,7 +41,7 @@ describe("fetchAndCacheSamples", () => {
 
     await fetchAndCacheSamples({
       ids: ["a", "b"],
-      outputDir,
+      cache: createMemorySampleCache(),
       delayMs,
       fetchOne,
     });
@@ -58,16 +57,17 @@ describe("fetchAndCacheSamples", () => {
 
   it("does not call fetchOne or delay on a cache hit", async () => {
     const fetchOne = vi.fn(async (id: string) => ({ id }));
+    const cache = createMemorySampleCache();
 
     // First run populates the cache.
-    await fetchAndCacheSamples({ ids: ["a"], outputDir, delayMs: 0, fetchOne });
+    await fetchAndCacheSamples({ ids: ["a"], cache, delayMs: 0, fetchOne });
     expect(fetchOne).toHaveBeenCalledTimes(1);
 
-    // Second run against the same outputDir should hit cache entirely, even with a large delay configured.
+    // Second run against the same cache should hit it entirely, even with a large delay configured.
     const start = Date.now();
     const samples = await fetchAndCacheSamples({
       ids: ["a"],
-      outputDir,
+      cache,
       delayMs: 5000,
       fetchOne,
     });
@@ -80,16 +80,17 @@ describe("fetchAndCacheSamples", () => {
 
   it("round-trips a bigint field to the same (string) shape on a fresh fetch and on a cache hit", async () => {
     const fetchOne = vi.fn(async () => ({ big: 12345678901234567890n }));
+    const cache = createMemorySampleCache();
 
     const first = await fetchAndCacheSamples({
       ids: ["x"],
-      outputDir,
+      cache,
       delayMs: 0,
       fetchOne,
     });
     const second = await fetchAndCacheSamples({
       ids: ["x"],
-      outputDir,
+      cache,
       delayMs: 0,
       fetchOne,
     });
@@ -107,7 +108,7 @@ describe("fetchAndCacheSamples", () => {
 
     const samples = await fetchAndCacheSamples({
       ids: ["a", "b", "c"],
-      outputDir,
+      cache: createMemorySampleCache(),
       delayMs: 0,
       fetchOne,
     });
@@ -125,7 +126,7 @@ describe("fetchAndCacheSamples", () => {
     await expect(
       fetchAndCacheSamples({
         ids: ["a", "b", "c"],
-        outputDir,
+        cache: createMemorySampleCache(),
         delayMs: 0,
         fetchOne,
         continueOnError: false,
@@ -135,16 +136,17 @@ describe("fetchAndCacheSamples", () => {
     expect(fetchOne).toHaveBeenCalledTimes(2);
   });
 
-  it("leaves already-fetched ids cached on disk when a later id fails (resumability)", async () => {
+  it("leaves already-fetched ids cached when a later id fails (resumability)", async () => {
     const fetchOne = vi.fn(async (id: string) => {
       if (id === "b") throw new Error("boom");
       return { id };
     });
+    const cache = createMemorySampleCache();
 
     await expect(
       fetchAndCacheSamples({
         ids: ["a", "b"],
-        outputDir,
+        cache,
         delayMs: 0,
         fetchOne,
         continueOnError: false,
@@ -156,7 +158,7 @@ describe("fetchAndCacheSamples", () => {
     await expect(
       fetchAndCacheSamples({
         ids: ["a"],
-        outputDir,
+        cache,
         delayMs: 0,
         fetchOne: resumeFetchOne,
       }),
@@ -166,14 +168,15 @@ describe("fetchAndCacheSamples", () => {
 
   it("reports progress for cache hits, fetches, and completions in order", async () => {
     const fetchOne = vi.fn(async (id: string) => ({ id }));
+    const cache = createMemorySampleCache();
     const events: string[] = [];
 
     // Prime the cache for "a" so the second run below exercises the "cached" branch of the progress callback too.
-    await fetchAndCacheSamples({ ids: ["a"], outputDir, delayMs: 0, fetchOne });
+    await fetchAndCacheSamples({ ids: ["a"], cache, delayMs: 0, fetchOne });
 
     await fetchAndCacheSamples({
       ids: ["a", "b"],
-      outputDir,
+      cache,
       delayMs: 0,
       fetchOne,
       onProgress: (event) =>
@@ -194,7 +197,7 @@ describe("fetchAndCacheSamples", () => {
 
     const samples = await fetchAndCacheSamples({
       ids: ["a", "b"],
-      outputDir,
+      cache: createMemorySampleCache(),
       delayMs: 0,
       fetchOne,
       onProgress: (event) =>
@@ -219,7 +222,7 @@ describe("fetchAndCacheSamples", () => {
     await expect(
       fetchAndCacheSamples({
         ids: ["a"],
-        outputDir,
+        cache: createMemorySampleCache(),
         delayMs: 0,
         fetchOne,
         continueOnError: false,
@@ -232,29 +235,18 @@ describe("fetchAndCacheSamples", () => {
 });
 
 describe("hasCachedSample", () => {
-  let outputDir: string;
-  let cacheDir: string;
-
-  beforeEach(async () => {
-    outputDir = await mkdtemp(path.join(tmpdir(), "fetch-cache-test-"));
-    cacheDir = path.join(outputDir, "cache");
-  });
-
-  afterEach(async () => {
-    await rm(outputDir, { recursive: true, force: true });
-  });
-
   it("agrees with fetchAndCacheSamples about which ids are cached", async () => {
-    expect(await hasCachedSample(cacheDir, "a")).toBe(false);
+    const cache = createMemorySampleCache();
+    expect(await hasCachedSample(cache, "a")).toBe(false);
 
     await fetchAndCacheSamples({
       ids: ["a"],
-      outputDir,
+      cache,
       delayMs: 0,
       fetchOne: vi.fn(async (id: string) => ({ id })),
     });
 
-    expect(await hasCachedSample(cacheDir, "a")).toBe(true);
-    expect(await hasCachedSample(cacheDir, "b")).toBe(false);
+    expect(await hasCachedSample(cache, "a")).toBe(true);
+    expect(await hasCachedSample(cache, "b")).toBe(false);
   });
 });

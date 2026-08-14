@@ -1,16 +1,17 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { FetchHttpError } from "@zod-crawler/core";
+import { hashId } from "@zod-crawler/pipeline";
 import { Queue } from "bullmq";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchAndCacheSamples } from "./fetchAndCacheSamples.js";
+import { runBullmqFetchQueue } from "./bullmqFetchQueue.js";
+import { createNodeSampleCache } from "./nodeSampleCache.js";
 import { parseRedisUrl } from "./redisConnection.js";
-import { hashId } from "./sampleCache.js";
-import { FetchHttpError } from "./urlFetcher.js";
 
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
 
-describe("fetchAndCacheSamples (redisUrl / BullMQ queue)", () => {
+describe("runBullmqFetchQueue", () => {
   let outputDir: string;
 
   beforeEach(async () => {
@@ -24,13 +25,14 @@ describe("fetchAndCacheSamples (redisUrl / BullMQ queue)", () => {
   it("fetches every id and caches results, same shape as the sequential queue", async () => {
     const fetchOne = vi.fn(async (id: string) => ({ id }));
 
-    const samples = await fetchAndCacheSamples({
+    const samples = await runBullmqFetchQueue({
       ids: ["a", "b", "c"],
-      outputDir,
-      delayMs: 0,
+      cache: createNodeSampleCache(outputDir),
+      cooldownMs: 0,
       fetchOne,
       redisUrl: REDIS_URL,
       concurrency: 3,
+      continueOnError: true,
     });
 
     expect(fetchOne).toHaveBeenCalledTimes(3);
@@ -39,22 +41,25 @@ describe("fetchAndCacheSamples (redisUrl / BullMQ queue)", () => {
 
   it("does not call fetchOne again on a cache hit from a prior run", async () => {
     const fetchOne = vi.fn(async (id: string) => ({ id }));
+    const cache = createNodeSampleCache(outputDir);
 
-    await fetchAndCacheSamples({
+    await runBullmqFetchQueue({
       ids: ["a"],
-      outputDir,
-      delayMs: 0,
+      cache,
+      cooldownMs: 0,
       fetchOne,
       redisUrl: REDIS_URL,
+      continueOnError: true,
     });
     expect(fetchOne).toHaveBeenCalledTimes(1);
 
-    const samples = await fetchAndCacheSamples({
+    const samples = await runBullmqFetchQueue({
       ids: ["a"],
-      outputDir,
-      delayMs: 5000,
+      cache,
+      cooldownMs: 5000,
       fetchOne,
       redisUrl: REDIS_URL,
+      continueOnError: true,
     });
 
     expect(fetchOne).toHaveBeenCalledTimes(1);
@@ -67,13 +72,14 @@ describe("fetchAndCacheSamples (redisUrl / BullMQ queue)", () => {
       return { id };
     });
 
-    const samples = await fetchAndCacheSamples({
+    const samples = await runBullmqFetchQueue({
       ids: ["a", "b", "c"],
-      outputDir,
-      delayMs: 0,
+      cache: createNodeSampleCache(outputDir),
+      cooldownMs: 0,
       fetchOne,
       redisUrl: REDIS_URL,
       concurrency: 3,
+      continueOnError: true,
     });
 
     expect(samples).toEqual({ a: { id: "a" }, c: { id: "c" } });
@@ -88,12 +94,13 @@ describe("fetchAndCacheSamples (redisUrl / BullMQ queue)", () => {
       return { id };
     });
 
-    const samples = await fetchAndCacheSamples({
+    const samples = await runBullmqFetchQueue({
       ids: ["flaky"],
-      outputDir,
-      delayMs: 0,
+      cache: createNodeSampleCache(outputDir),
+      cooldownMs: 0,
       fetchOne,
       redisUrl: REDIS_URL,
+      continueOnError: true,
     });
 
     expect(samples).toEqual({ flaky: { id: "flaky" } });
@@ -106,12 +113,13 @@ describe("fetchAndCacheSamples (redisUrl / BullMQ queue)", () => {
     });
     const events: { status: string; error?: string }[] = [];
 
-    const samples = await fetchAndCacheSamples({
+    const samples = await runBullmqFetchQueue({
       ids: ["always-429"],
-      outputDir,
-      delayMs: 0,
+      cache: createNodeSampleCache(outputDir),
+      cooldownMs: 0,
       fetchOne,
       redisUrl: REDIS_URL,
+      continueOnError: true,
       onProgress: (event) =>
         events.push({ status: event.status, error: event.error }),
     });
@@ -129,10 +137,10 @@ describe("fetchAndCacheSamples (redisUrl / BullMQ queue)", () => {
     });
 
     await expect(
-      fetchAndCacheSamples({
+      runBullmqFetchQueue({
         ids: ["ok-1", "ok-2", "bad"],
-        outputDir,
-        delayMs: 0,
+        cache: createNodeSampleCache(outputDir),
+        cooldownMs: 0,
         fetchOne,
         redisUrl: REDIS_URL,
         concurrency: 3,
@@ -141,21 +149,22 @@ describe("fetchAndCacheSamples (redisUrl / BullMQ queue)", () => {
     ).rejects.toThrow(/Failed to fetch id "bad"/);
   });
 
-  it("paces ids on the same domain by delayMs, but not across different domains", async () => {
+  it("paces ids on the same domain by cooldownMs, but not across different domains", async () => {
     const fetchOne = vi.fn(async (id: string) => ({ id }));
     const start = Date.now();
 
-    await fetchAndCacheSamples({
+    await runBullmqFetchQueue({
       ids: [
         "https://a.example.com/1",
         "https://a.example.com/2",
         "https://b.example.com/1",
       ],
-      outputDir,
-      delayMs: 300,
+      cache: createNodeSampleCache(outputDir),
+      cooldownMs: 300,
       fetchOne,
       redisUrl: REDIS_URL,
       concurrency: 3,
+      continueOnError: true,
     });
 
     const elapsed = Date.now() - start;
@@ -165,7 +174,7 @@ describe("fetchAndCacheSamples (redisUrl / BullMQ queue)", () => {
   });
 
   it("does not double-enqueue an id already waiting under the same crawlId's queue", async () => {
-    // Checked directly against BullMQ, not through fetchAndCacheSamples: a live worker can complete and remove the pre-seeded job before a second add() call observes it, a harmless race that made call-count assertions flaky.
+    // Checked directly against BullMQ, not through runBullmqFetchQueue: a live worker can complete and remove the pre-seeded job before a second add() call observes it, a harmless race that made call-count assertions flaky.
     const crawlId = `test-crawl-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const queueName = `zod-crawler-fetch-${crawlId}`;
     const connection = parseRedisUrl(REDIS_URL);
@@ -174,7 +183,7 @@ describe("fetchAndCacheSamples (redisUrl / BullMQ queue)", () => {
     // A URL id exercises the hash: BullMQ rejects ":" in raw job ids.
     const id = "https://example.com/x";
     const jobOptions = {
-      jobId: hashId(id),
+      jobId: await hashId(id),
       removeOnComplete: true,
       removeOnFail: true,
     };

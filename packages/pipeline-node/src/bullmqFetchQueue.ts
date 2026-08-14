@@ -1,30 +1,24 @@
-import { readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
-import type { JsonValue } from "./types.js";
-import type { FetchProgressEvent } from "./fetchProgressEvent.js";
+import { FetchHttpError, type JsonValue } from "@zod-crawler/core";
 import {
   bigintSafeStringify,
-  cacheFilePath,
-  fileExists,
   hashId,
-  recordManifestEntry,
-} from "./sampleCache.js";
+  type FetchProgressEvent,
+  type SampleCache,
+} from "@zod-crawler/pipeline";
 import { parseRedisUrl } from "./redisConnection.js";
 import { createDomainCooldownGate } from "./domainCooldownGate.js";
-import { FetchHttpError } from "./urlFetcher.js";
 
 export interface RunBullmqFetchQueueOptions {
   ids: string[];
-  cacheDir: string;
+  cache: SampleCache;
   fetchOne: (id: string) => Promise<unknown>;
   redisUrl: string;
-  concurrency: number;
+  // How many fetches the BullMQ worker runs at once. @default 1
+  concurrency?: number;
   // Per-domain pacing (reuses the same knob the sequential queue uses as its global pacing).
   cooldownMs: number;
   continueOnError: boolean;
   onProgress?: (event: FetchProgressEvent) => void;
-  // Populated in place with every successfully fetched (or cache-hit) sample.
-  samples: Record<string, JsonValue>;
   // Derives a deterministic queue name so a restarted process can reconnect to it; omitted callers get a random one.
   crawlId?: string;
 }
@@ -58,34 +52,35 @@ async function importBullmq(): Promise<typeof import("bullmq")> {
   }
 }
 
+// Redis/BullMQ-backed alternative to @zod-crawler/pipeline's fetchAndCacheSamples (retries with backoff, per-domain cooldowns), against a Redis-protocol server. Returns samples the same way fetchAndCacheSamples does, so a caller can pick between the two with a symmetric contract - see apps/cli/README.md's "Advanced queuing" section for why a caller would want this over the plain sequential loop.
 export async function runBullmqFetchQueue({
   ids,
-  cacheDir,
+  cache,
   fetchOne,
   redisUrl,
-  concurrency,
+  concurrency = 1,
   cooldownMs,
   continueOnError,
   onProgress,
-  samples,
   crawlId,
-}: RunBullmqFetchQueueOptions): Promise<void> {
+}: RunBullmqFetchQueueOptions): Promise<Record<string, JsonValue>> {
   const total = ids.length;
+  const samples: Record<string, JsonValue> = {};
 
   // Cache pre-pass, same semantics as the sequential loop's cache-hit branch, done up front so the queue only ever sees ids that actually need a fetch.
   const toFetch: JobData[] = [];
   for (let index = 0; index < ids.length; index++) {
     const id = ids[index];
-    const cachePath = cacheFilePath(cacheDir, id);
-    if (await fileExists(cachePath)) {
+    const cached = await cache.get(await hashId(id));
+    if (cached !== undefined) {
       onProgress?.({ id, index, total, status: "cached" });
-      samples[id] = JSON.parse(await readFile(cachePath, "utf8"));
+      samples[id] = JSON.parse(cached);
     } else {
       toFetch.push({ id, index });
     }
   }
 
-  if (toFetch.length === 0) return;
+  if (toFetch.length === 0) return samples;
 
   const { Queue, Worker, UnrecoverableError } = await importBullmq();
   const connection = parseRedisUrl(redisUrl);
@@ -97,10 +92,8 @@ export async function runBullmqFetchQueue({
   const queue = new Queue<JobData, unknown, string>(queueName, { connection });
 
   async function writeSuccess(id: string, data: unknown): Promise<void> {
-    const cachePath = cacheFilePath(cacheDir, id);
     const serialized = bigintSafeStringify(data);
-    await writeFile(cachePath, serialized);
-    await recordManifestEntry(cacheDir, id, path.basename(cachePath));
+    await cache.set(await hashId(id), serialized);
     samples[id] = JSON.parse(serialized);
   }
 
@@ -188,10 +181,10 @@ export async function runBullmqFetchQueue({
     });
 
     Promise.all(
-      toFetch.map((data) =>
+      toFetch.map(async (data) =>
         queue.add("fetch", data, {
           // Dedup key so a resumed run can re-add every not-yet-cached id without double-enqueuing one still in flight; hashed since BullMQ rejects raw ids containing ":".
-          jobId: hashId(data.id),
+          jobId: await hashId(data.id),
           attempts: RETRY_ATTEMPTS,
           backoff: { type: "exponential", delay: RETRY_BACKOFF_MS },
           removeOnComplete: true,
@@ -205,4 +198,6 @@ export async function runBullmqFetchQueue({
       }
     });
   });
+
+  return samples;
 }
