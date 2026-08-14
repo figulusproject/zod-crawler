@@ -31,6 +31,6 @@
     "typescript": "^5",
     "vitest": "^4",
     "zod": "^4.4.3",
-    "zod-commands": "^1.1.1"
+    "zod-commands": "^1.1.2"
   }
 }

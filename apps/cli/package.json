@@ -25,7 +25,7 @@
     "@zod-crawler/pipeline-node": "^1.1.0",
     "prettier": "^3.8.3",
     "zod": "^4.4.3",
-    "zod-commands": "^1.1.1",
+    "zod-commands": "^1.1.2",
     "zod-transformers": "^1.0.0"
   },
   "peerDependencies": {
