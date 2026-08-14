@@ -5,6 +5,7 @@
     { "path": "packages/pipeline" },
     { "path": "packages/pipeline-node" },
     { "path": "packages/pipeline-browser" },
+    { "path": "packages/components" },
     { "path": "apps/cli" },
     { "path": "apps/web/tsconfig.server.json" }
   ]
