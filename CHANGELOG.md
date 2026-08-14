@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- `@zod-crawler/pipeline`: a new package, split out of `@zod-crawler/core`, holding the platform-portable half of the crawl pipeline (`fetchAndCacheSamples`, the `SampleCache` interface, `hashId`, `hasCachedSample`, `fetchProgressEvent`) with zero Node dependency of its own.
+- `@zod-crawler/pipeline-node`: a new package holding the Node/Redis backend (`createNodeSampleCache`, `runBullmqFetchQueue`, `domainCooldownGate`, `redisConnection`, `crawlRegistry`), depending on `@zod-crawler/pipeline`. `apps/cli` and `apps/web`'s server now branch on `redisUrl` themselves to pick `fetchAndCacheSamples` or `runBullmqFetchQueue`, instead of that branch living inside a single fetch function.
+- `@zod-crawler/pipeline-browser`: a new package with `createCacheApiSampleCache`, a browser `SampleCache` backed by the Cache API, and `createBrowserUrlFetcher`, a `fetch`-based fetcher that retries through a CORS proxy only when a direct request throws (network/CORS failure), remembering per-job which origins already needed the proxy.
+- `apps/web-demo`: a new client-only Vite/React app rendering the same `CrawlForm`/`JobList`/`JobDetail` as `apps/web`, running a full crawl (`fetchAndCacheSamples` -> `inferSchema` -> `validateSamples` -> `findCrawlCandidates`) entirely in a browser Web Worker with no server, using `@zod-crawler/pipeline-browser`'s cache and fetcher and `prettier/standalone` for formatting. Deployed at https://zodcrawler.figulus.dev/demo. A crawl doesn't survive a page refresh (no SSE/job registry, unlike `apps/web`) - a refresh just restarts.
+- `@zod-crawler/components`: a new shared shadcn/Tailwind UI package holding the UI and crawl components moved out of `apps/web`, so `apps/web` and `apps/web-demo` render from the same components.
+- `tools/cors-proxy`: a self-hosted CORS proxy at `zodcrawler.figulus.dev/proxy` that the demo falls back to when a target API doesn't allow direct cross-origin fetches, rate-limited per IP and capped daily.
+- `tools/site-router`: routes `zodcrawler.figulus.dev`'s docs, the new demo, and everything else to the right place.
+
 ## [1.1.0] - 2026-08-12
 
 ### Added
