@@ -10,5 +10,6 @@
   },
   "vars": {
     "REPO_URL": "https://github.com/figulusproject/zod-crawler",
+    "DEMO_ORIGIN": "https://zod-crawler.vercel.app",
   },
 }

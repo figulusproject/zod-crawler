@@ -7,6 +7,7 @@ import { Switch } from "#components/ui/switch";
 import { Textarea } from "#components/ui/textarea";
 import { parseIds } from "./parse-ids.js";
 import { MIN_DELAY_MS, type FormState } from "./crawl-types.js";
+import { SCHEMA_NAME_PATTERN } from "@zod-crawler/core";
 import {
   crawlCandidatesFormatFromExtension,
   idsParsers,
@@ -28,6 +29,14 @@ export function CrawlForm({
   const idCount = parseIds(form.idsText).length;
   const urlTemplateInvalid =
     form.urlTemplate.trim().length > 0 && !form.urlTemplate.includes("{id}");
+  const schemaNameInvalid =
+    form.schemaName.trim().length > 0 &&
+    !SCHEMA_NAME_PATTERN.test(form.schemaName.trim());
+  const delayMsValue = Number(form.delayMs);
+  const delayMsInvalid =
+    form.delayMs.trim().length > 0 &&
+    Number.isFinite(delayMsValue) &&
+    delayMsValue < MIN_DELAY_MS;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -134,6 +143,7 @@ export function CrawlForm({
             value={form.delayMs}
             onChange={(event) => onChange({ delayMs: event.target.value })}
             disabled={disabled}
+            aria-invalid={delayMsInvalid}
           />
         </div>
 
@@ -144,6 +154,7 @@ export function CrawlForm({
             value={form.schemaName}
             onChange={(event) => onChange({ schemaName: event.target.value })}
             disabled={disabled}
+            aria-invalid={schemaNameInvalid}
           />
         </div>
       </div>
@@ -184,7 +195,13 @@ export function CrawlForm({
 
       <Button
         type="submit"
-        disabled={disabled || idCount === 0 || urlTemplateInvalid}
+        disabled={
+          disabled ||
+          idCount === 0 ||
+          urlTemplateInvalid ||
+          schemaNameInvalid ||
+          delayMsInvalid
+        }
       >
         Start crawl
       </Button>
