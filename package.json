@@ -11,10 +11,10 @@
   "scripts": {
     "build": "tsc -b && chmod +x apps/cli/dist/index.js && npm run build --workspace=@zod-crawler/web",
     "clean": "tsc -b --clean",
-    "typecheck": "tsc -b --force && npm run typecheck --workspace=@zod-crawler/web && npm run typecheck --workspace=@zod-crawler/cors-proxy",
+    "typecheck": "tsc -b --force && npm run typecheck --workspace=@zod-crawler/web && npm run typecheck --workspace=@zod-crawler/cors-proxy && npm run typecheck --workspace=@zod-crawler/site-router",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run --project node --project cors-proxy",
+    "test": "vitest run --project node --project cors-proxy --project site-router",
     "test:browser": "vitest run --project pipeline-browser",
     "coverage": "vitest run --project node --coverage",
     "sync-versions": "tsx scripts/sync-versions.ts",

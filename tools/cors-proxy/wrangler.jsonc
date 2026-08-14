@@ -2,8 +2,9 @@
   "name": "zod-crawler-cors-proxy",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-14",
+  "routes": ["zodcrawler.figulus.dev/proxy*"],
   "vars": {
-    "ALLOWED_ORIGIN": "https://demo.zodcrawler.figulus.dev",
+    "ALLOWED_ORIGIN": "https://zodcrawler.figulus.dev",
     "DAILY_REQUEST_CAP": "25000",
   },
   "durable_objects": {
