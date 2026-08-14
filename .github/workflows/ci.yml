@@ -42,6 +42,14 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Install Playwright Chromium
+        if: matrix.node-version == 24
+        run: npx playwright install --with-deps chromium
+
+      - name: Test (browser)
+        if: matrix.node-version == 24
+        run: npm run test:browser
+
       - name: Coverage
         if: matrix.node-version == 24
         run: npm run coverage
