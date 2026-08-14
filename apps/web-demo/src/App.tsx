@@ -6,21 +6,32 @@ import {
   parseIds,
   DEFAULT_FORM_STATE,
   type FormState,
-  type JobState,
 } from "@zod-crawler/components/crawl";
+import { useLocalCrawlJob } from "@/hooks/useLocalCrawlJob";
 
 export function App() {
   const [form, setForm] = useState<FormState>(DEFAULT_FORM_STATE);
-  const [jobs] = useState<Record<string, JobState>>({});
-  const [jobIds] = useState<string[]>([]);
+  const { jobIds, jobs, startJob, dismissJob } = useLocalCrawlJob();
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 
   const updateForm = (patch: Partial<FormState>) =>
     setForm((previous) => ({ ...previous, ...patch }));
 
-  // Crawl execution (a Web Worker running the pipeline, with a cors-proxy fallback for direct-fetch failures) isn't wired up yet - that's the next step.
   const handleSubmit = () => {
-    console.log("Start crawl (not wired up yet):", form);
+    const ids = parseIds(form.idsText);
+    if (ids.length === 0) return;
+
+    const delayMs = Number(form.delayMs);
+    const jobId = startJob({
+      ids,
+      urlTemplate: form.urlTemplate.trim() || undefined,
+      delayMs: Number.isFinite(delayMs) ? delayMs : undefined,
+      schemaName: form.schemaName.trim() || undefined,
+      emitCrawlCandidates: form.emitCrawlCandidates,
+      useZodTransformers: form.useZodTransformers,
+      stopOnError: form.stopOnError,
+    });
+    setSelectedJobId(jobId);
   };
 
   const handleReFeed = (values: string[]) => {
@@ -32,6 +43,7 @@ export function App() {
   };
 
   const handleDismiss = (jobId: string) => {
+    dismissJob(jobId);
     setSelectedJobId((current) => (current === jobId ? null : current));
   };
 

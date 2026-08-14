@@ -5,7 +5,7 @@
     "rootDir": "src",
     "lib": ["ES2023", "DOM"]
   },
-  "references": [{ "path": "../pipeline" }],
+  "references": [{ "path": "../core" }, { "path": "../pipeline" }],
   "include": ["src"],
   "exclude": ["src/**/*.test.ts"]
 }
