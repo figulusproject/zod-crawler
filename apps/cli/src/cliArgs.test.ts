@@ -171,7 +171,8 @@ describe("parseCliArgs", () => {
   it("rejects when neither --ids nor --ids-file is given", () => {
     const result = parseCliArgs(["--output", "/tmp/out"]);
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.message).toMatch(/exactly one/i);
+    if (!result.ok)
+      expect(result.message).toMatch(/one of --ids or --ids-file is required/i);
   });
 
   it("rejects when both --ids and --ids-file are given", () => {
@@ -184,7 +185,7 @@ describe("parseCliArgs", () => {
       "/tmp/out",
     ]);
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.message).toMatch(/exactly one/i);
+    if (!result.ok) expect(result.message).toMatch(/mutually exclusive/i);
   });
 
   it("rejects a missing --output", () => {

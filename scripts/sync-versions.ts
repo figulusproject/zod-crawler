@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
-import { defineCli } from "zod-cli-flags";
+import { defineCli } from "zod-commands";
 
 const REPO_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -17,7 +17,6 @@ const cli = defineCli({
       .max(1, { error: "Received too many arguments! Expected exactly one." }),
     label: "<version>",
   },
-  flags: {},
 });
 
 const {
