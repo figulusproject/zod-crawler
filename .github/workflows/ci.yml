@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [20, 22, 24]
+        node-version: [22, 24, 26]
     runs-on: ubuntu-latest
     services:
       valkey:
@@ -43,19 +43,19 @@ jobs:
         run: npm test
 
       - name: Install Playwright Chromium
-        if: matrix.node-version == 24
+        if: matrix.node-version == 26
         run: npx playwright install --with-deps chromium
 
       - name: Test (browser)
-        if: matrix.node-version == 24
+        if: matrix.node-version == 26
         run: npm run test:browser
 
       - name: Coverage
-        if: matrix.node-version == 24
+        if: matrix.node-version == 26
         run: npm run coverage
 
       - name: Update coverage badge
-        if: matrix.node-version == 24 && github.ref == 'refs/heads/main'
+        if: matrix.node-version == 26 && github.ref == 'refs/heads/main'
         run: |
           node -e "
             const fs = require('fs');

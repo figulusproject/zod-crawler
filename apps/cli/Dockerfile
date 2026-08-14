@@ -20,7 +20,7 @@
 #   docker run --rm -v "$(pwd)/out:/out" zod-crawler \
 #     --ids "1,2,3" --url-template "https://example.com/items/{id}" --output /out
 
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 
 # Copy manifests first so `npm ci` is cached across source-only changes.
@@ -48,7 +48,7 @@ RUN npm prune --omit=dev \
   && find packages apps -maxdepth 2 -type d -name src -prune -exec rm -rf {} + \
   && find packages apps -maxdepth 2 -name "*.tsbuildinfo" -delete
 
-FROM node:22-alpine AS runtime-external
+FROM node:24-alpine AS runtime-external
 WORKDIR /app
 
 # Runs as the non-root "node" user (built into the base image, uid 1000)

@@ -16,6 +16,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `tools/cors-proxy`: a self-hosted CORS proxy at `zodcrawler.figulus.dev/proxy` that the demo falls back to when a target API doesn't allow direct cross-origin fetches, rate-limited per IP and capped daily.
 - `tools/site-router`: routes `zodcrawler.figulus.dev`'s docs, the new demo, and everything else to the right place.
 
+### Changed
+
+- CI workflow (`ci.yml`) and `apps/cli`/`apps/web`'s Docker images now run on Node 22/24/26 instead of 20/22/24.
+
 ## [1.1.0] - 2026-08-12
 
 ### Added

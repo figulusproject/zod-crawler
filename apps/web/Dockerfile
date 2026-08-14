@@ -26,7 +26,7 @@
 #     -e REDIS_URL=redis://your-valkey-host:6379 \
 #     zod-crawler-web:slim
 
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json ./
@@ -47,7 +47,7 @@ RUN npm install --no-save --omit=dev bullmq@^6 ioredis@^6
 
 RUN npm prune --omit=dev
 
-FROM node:22-alpine AS runtime-external
+FROM node:24-alpine AS runtime-external
 WORKDIR /app
 
 COPY --from=builder --chown=node:node /app/package.json ./
