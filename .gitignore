@@ -7,3 +7,5 @@ coverage/
 .DS_Store
 packages/*/LICENSE
 apps/*/LICENSE
+.wrangler/
+worker-configuration.d.ts

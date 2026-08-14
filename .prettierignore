@@ -3,3 +3,5 @@ dist/
 *.tsbuildinfo
 package-lock.json
 docs/coverage-badge.json
+.wrangler/
+worker-configuration.d.ts

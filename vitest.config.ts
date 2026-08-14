@@ -12,9 +12,15 @@ export default defineConfig({
       {
         test: {
           name: "node",
-          exclude: ["**/node_modules/**", "**/.git/**", "**/*.browser.test.ts"],
+          exclude: [
+            "**/node_modules/**",
+            "**/.git/**",
+            "**/*.browser.test.ts",
+            "tools/cors-proxy/**",
+          ],
         },
       },
+      "tools/cors-proxy",
       {
         test: {
           name: "pipeline-browser",
@@ -43,6 +49,8 @@ export default defineConfig({
         "apps/web/server/index.ts",
         // Only exercised by the pipeline-browser project's browser test (npm run test:browser), which `npm run coverage` doesn't run.
         "packages/pipeline-browser/src/**",
+        // Runs under the cors-proxy project's workerd pool, which doesn't support v8 coverage.
+        "tools/cors-proxy/src/**",
       ],
       thresholds: {
         statements: 95,
