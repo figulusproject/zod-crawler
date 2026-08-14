@@ -7,14 +7,18 @@ import prettier from "prettier";
 import {
   createUrlFetcher,
   DEFAULT_CONCURRENCY,
-  fetchAndCacheSamples,
   findCrawlCandidates,
   inferSchema,
-  listActiveCrawls,
-  registerActiveCrawl,
-  unregisterActiveCrawl,
   validateSamples,
 } from "@zod-crawler/core";
+import { fetchAndCacheSamples } from "@zod-crawler/pipeline";
+import {
+  createNodeSampleCache,
+  listActiveCrawls,
+  registerActiveCrawl,
+  runBullmqFetchQueue,
+  unregisterActiveCrawl,
+} from "@zod-crawler/pipeline-node";
 import type {
   ActiveCrawlSummary,
   CrawlCompleteEvent,
@@ -135,24 +139,38 @@ async function runJob(
 
   const fetchFailures: FetchFailure[] = [];
 
+  const onProgress = (event: CrawlProgressEvent): void => {
+    job.progress.set(event.index, event);
+    if (event.status === "error" && event.error !== undefined) {
+      fetchFailures.push({ id: event.id, error: event.error });
+    }
+    job.emitter.emit("progress", event);
+  };
+
   try {
-    const samples = await fetchAndCacheSamples({
-      ids: request.ids,
-      outputDir: tmpDir,
-      delayMs: request.delayMs,
-      fetchOne: createUrlFetcher(request.urlTemplate),
-      continueOnError: !request.stopOnError,
-      redisUrl: REDIS_URL,
-      concurrency: REDIS_URL ? DEFAULT_CONCURRENCY : undefined,
-      crawlId: job.id,
-      onProgress: (event: CrawlProgressEvent) => {
-        job.progress.set(event.index, event);
-        if (event.status === "error" && event.error !== undefined) {
-          fetchFailures.push({ id: event.id, error: event.error });
-        }
-        job.emitter.emit("progress", event);
-      },
-    });
+    const cache = createNodeSampleCache(tmpDir);
+    const fetchOne = createUrlFetcher(request.urlTemplate);
+
+    const samples = REDIS_URL
+      ? await runBullmqFetchQueue({
+          ids: request.ids,
+          cache,
+          fetchOne,
+          continueOnError: !request.stopOnError,
+          redisUrl: REDIS_URL,
+          concurrency: DEFAULT_CONCURRENCY,
+          cooldownMs: request.delayMs,
+          crawlId: job.id,
+          onProgress,
+        })
+      : await fetchAndCacheSamples({
+          ids: request.ids,
+          cache,
+          delayMs: request.delayMs,
+          fetchOne,
+          continueOnError: !request.stopOnError,
+          onProgress,
+        });
 
     const schemaName = request.schemaName;
     const source = inferSchema(samples, schemaName, request.useZodTransformers);

@@ -5,7 +5,11 @@
     "rootDir": ".",
     "types": ["node"]
   },
-  "references": [{ "path": "../../packages/core" }],
+  "references": [
+    { "path": "../../packages/core" },
+    { "path": "../../packages/pipeline" },
+    { "path": "../../packages/pipeline-node" }
+  ],
   "include": ["server", "shared"],
   "exclude": ["server/**/*.test.ts"]
 }

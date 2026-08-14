@@ -1,0 +1,36 @@
+{
+  "name": "@zod-crawler/pipeline-browser",
+  "version": "1.1.0",
+  "description": "Browser Cache API-backed fetch-and-cache backends for zod-crawler's schema-inference pipeline.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "prepack": "cp ../../LICENSE ./LICENSE"
+  },
+  "dependencies": {
+    "@zod-crawler/core": "^1.1.0",
+    "@zod-crawler/pipeline": "^1.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/figulusproject/zod-crawler",
+    "directory": "packages/pipeline-browser"
+  },
+  "author": "The Figulus Project",
+  "license": "MIT"
+}

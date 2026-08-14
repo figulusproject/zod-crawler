@@ -5,22 +5,26 @@
   "type": "module",
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "apps/*",
+    "tools/*"
   ],
   "scripts": {
-    "build": "tsc -b && chmod +x apps/cli/dist/index.js && npm run build --workspace=@zod-crawler/web",
+    "build": "tsc -b && chmod +x apps/cli/dist/index.js && npm run build --workspace=@zod-crawler/web && npm run build --workspace=@zod-crawler/web-demo",
     "clean": "tsc -b --clean",
-    "typecheck": "tsc -b --force && npm run typecheck --workspace=@zod-crawler/web",
+    "typecheck": "tsc -b --force && npm run typecheck --workspace=@zod-crawler/web && npm run typecheck --workspace=@zod-crawler/web-demo && npm run typecheck --workspace=@zod-crawler/cors-proxy && npm run typecheck --workspace=@zod-crawler/site-router",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run",
-    "coverage": "vitest run --coverage",
+    "test": "vitest run --project node --project cors-proxy --project site-router",
+    "test:browser": "vitest run --project pipeline-browser",
+    "coverage": "vitest run --project node --coverage",
     "sync-versions": "tsx scripts/sync-versions.ts",
     "docs": "docsify serve docs"
   },
   "devDependencies": {
+    "@vitest/browser-playwright": "^4.1.10",
     "@vitest/coverage-v8": "^4.1.10",
     "docsify-cli": "^5.0.0",
+    "playwright": "^1.62.1",
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "tsx": "^4",

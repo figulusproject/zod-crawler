@@ -1,7 +1,5 @@
-import type {
-  CrawlCandidateField,
-  FetchProgressEvent,
-} from "@zod-crawler/core";
+import type { CrawlCandidateField } from "@zod-crawler/core";
+import type { FetchProgressEvent } from "@zod-crawler/pipeline";
 
 export interface CrawlRequest {
   ids: string[];

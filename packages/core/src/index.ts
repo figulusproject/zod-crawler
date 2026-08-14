@@ -54,20 +54,4 @@ export {
   DEFAULT_CONCURRENCY,
 } from "./crawlSettingsDefaults.js";
 
-export type {
-  FetchProgressEvent,
-  FetchAndCacheSamplesOptions,
-} from "./fetchAndCacheSamples.js";
-export {
-  fetchAndCacheSamples,
-  hasCachedSample,
-} from "./fetchAndCacheSamples.js";
-
 export { createUrlFetcher, FetchHttpError } from "./urlFetcher.js";
-
-export type { ActiveCrawlEntry } from "./crawlRegistry.js";
-export {
-  registerActiveCrawl,
-  unregisterActiveCrawl,
-  listActiveCrawls,
-} from "./crawlRegistry.js";

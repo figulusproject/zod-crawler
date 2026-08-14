@@ -1,0 +1,26 @@
+{
+  "name": "zod-crawler-cors-proxy",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-14",
+  "routes": ["zodcrawler.figulus.dev/proxy*"],
+  "vars": {
+    "ALLOWED_ORIGIN": "https://zodcrawler.figulus.dev",
+    "DAILY_REQUEST_CAP": "25000",
+  },
+  "durable_objects": {
+    "bindings": [
+      { "name": "DAILY_REQUEST_COUNTER", "class_name": "DailyRequestCounter" },
+    ],
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["DailyRequestCounter"] },
+  ],
+  "ratelimits": [
+    {
+      "name": "PER_IP_RATE_LIMITER",
+      "namespace_id": "1",
+      // ~2.5x a default-paced crawl's throughput (DEFAULT_DELAY_MS is 7500ms, so ~8 req/min) - headroom for a faster --delay-ms or a couple of concurrent tabs.
+      "simple": { "limit": 20, "period": 60 },
+    },
+  ],
+}
