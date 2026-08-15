@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { openSync, closeSync } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,16 +9,43 @@ import prettier from "prettier";
 import {
   createUrlFetcher,
   crawlCandidatesFormatters,
-  fetchAndCacheSamples,
   findCrawlCandidates,
-  hasCachedSample,
   inferSchema,
   validateSamples,
   type CrawlCandidateField,
   type CrawlCandidatesFormat,
-  type FetchProgressEvent,
 } from "@zod-crawler/core";
-import { parseCliArgs, usage, type CliSettings } from "./cliArgs.js";
+import {
+  fetchAndCacheSamples,
+  hasCachedSample,
+  type FetchProgressEvent,
+  type SampleCache,
+} from "@zod-crawler/pipeline";
+import {
+  createNodeSampleCache,
+  runBullmqFetchQueue,
+} from "@zod-crawler/pipeline-node";
+import {
+  parseCliArgs,
+  type CliSettings,
+  type StatusSettings,
+} from "./cliArgs.js";
+
+const PID_FILENAME = "zod-crawler.pid";
+const STATUS_FILENAME = "zod-crawler.status.json";
+const LOG_FILENAME = "zod-crawler.log";
+const DETACHED_ENV_VAR = "ZOD_CRAWLER_DETACHED";
+
+interface PidFile {
+  pid: number;
+  startedAt: string;
+  ids: number;
+}
+
+interface StatusFile {
+  exitCode: number;
+  finishedAt: string;
+}
 
 // Prints fetch/cache status lines to stderr; the web app renders the same FetchProgressEvent stream as SSE messages instead.
 function logFetchProgress(event: FetchProgressEvent): void {
@@ -38,29 +65,66 @@ export async function runCli(argv: string[]): Promise<number> {
   const parsed = parseCliArgs(argv);
   if (!parsed.ok) {
     console.error(parsed.message);
-    console.error(usage);
+    console.error(parsed.usage);
     return 1;
   }
+
+  if (parsed.command === "status") {
+    return runStatus(parsed.settings);
+  }
+
   const { settings } = parsed;
 
   if (settings.detach) {
     return runDetached(settings);
   }
 
+  if (process.env[DETACHED_ENV_VAR] === "1") {
+    let exitCode = 1;
+    try {
+      exitCode = await runCrawl(settings);
+    } finally {
+      await writeFile(
+        path.join(settings.outputDir, STATUS_FILENAME),
+        JSON.stringify({
+          exitCode,
+          finishedAt: new Date().toISOString(),
+        } satisfies StatusFile),
+      );
+    }
+    return exitCode;
+  }
+
+  return runCrawl(settings);
+}
+
+async function runCrawl(settings: CliSettings): Promise<number> {
   await mkdir(settings.outputDir, { recursive: true });
+
+  const cache = createNodeSampleCache(settings.outputDir);
+  const fetchOne = createUrlFetcher(settings.urlTemplate);
 
   let samples;
   try {
-    samples = await fetchAndCacheSamples({
-      ids: settings.ids,
-      outputDir: settings.outputDir,
-      delayMs: settings.delayMs,
-      fetchOne: createUrlFetcher(settings.urlTemplate),
-      onProgress: logFetchProgress,
-      continueOnError: !settings.stopOnError,
-      redisUrl: settings.redisUrl,
-      concurrency: settings.concurrency,
-    });
+    samples = settings.redisUrl
+      ? await runBullmqFetchQueue({
+          ids: settings.ids,
+          cache,
+          fetchOne,
+          onProgress: logFetchProgress,
+          continueOnError: !settings.stopOnError,
+          redisUrl: settings.redisUrl,
+          concurrency: settings.concurrency,
+          cooldownMs: settings.delayMs,
+        })
+      : await fetchAndCacheSamples({
+          ids: settings.ids,
+          cache,
+          delayMs: settings.delayMs,
+          fetchOne,
+          onProgress: logFetchProgress,
+          continueOnError: !settings.stopOnError,
+        });
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     return 1;
@@ -116,6 +180,7 @@ export async function runCli(argv: string[]): Promise<number> {
       samples,
       settings.ids,
       settings.outputDir,
+      cache,
       settings.crawlCandidatesFormat,
     );
   }
@@ -123,7 +188,7 @@ export async function runCli(argv: string[]): Promise<number> {
   return exitCode;
 }
 
-// Re-invokes this same CLI as a detached child with --detach stripped (settings has no way to express it, so it can't round-trip back in), then returns immediately without waiting for the crawl itself. There's no status subcommand yet, so the log file and pid printed here are the only way to check on it later.
+// Re-invokes this same CLI as a detached child with --detach stripped (settings has no way to express it, so it can't round-trip back in), then returns immediately without waiting for the crawl itself. The "status" subcommand reads the pidfile written here and the status file the child writes on completion.
 async function runDetached(settings: CliSettings): Promise<number> {
   await mkdir(settings.outputDir, { recursive: true });
 
@@ -150,7 +215,7 @@ async function runDetached(settings: CliSettings): Promise<number> {
     childArgs.push("--concurrency", String(settings.concurrency));
   }
 
-  const logPath = path.join(settings.outputDir, "zod-crawler.log");
+  const logPath = path.join(settings.outputDir, LOG_FILENAME);
   const logFd = openSync(logPath, "a");
 
   // Resolved from this module's own location, not process.argv[1]: works the same whether invoked via the installed bin, npx, or a direct node call.
@@ -158,6 +223,7 @@ async function runDetached(settings: CliSettings): Promise<number> {
   const child = spawn(process.execPath, [scriptPath, ...childArgs], {
     detached: true,
     stdio: ["ignore", logFd, logFd],
+    env: { ...process.env, [DETACHED_ENV_VAR]: "1" },
   });
 
   const spawned = await new Promise<{ ok: true } | { ok: false; error: Error }>(
@@ -174,10 +240,83 @@ async function runDetached(settings: CliSettings): Promise<number> {
   }
 
   child.unref();
+
+  await writeFile(
+    path.join(settings.outputDir, PID_FILENAME),
+    JSON.stringify({
+      // spawn() sets pid synchronously. It's undefined only when spawning
+      // fails outright, already ruled out by spawned.ok above.
+      pid: child.pid!,
+      startedAt: new Date().toISOString(),
+      ids: settings.ids.length,
+    } satisfies PidFile),
+  );
+
   console.log(`Started crawl in the background (pid ${child.pid}).`);
   console.log(`Logs: ${logPath}`);
   console.log(`Output: ${settings.outputDir}`);
   return 0;
+}
+
+async function readJsonFile<T>(filePath: string): Promise<T | undefined> {
+  try {
+    return JSON.parse(await readFile(filePath, "utf8")) as T;
+  } catch {
+    return undefined;
+  }
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "EPERM";
+  }
+}
+
+async function runStatus(settings: StatusSettings): Promise<number> {
+  const pidFile = await readJsonFile<PidFile>(
+    path.join(settings.outputDir, PID_FILENAME),
+  );
+  if (pidFile === undefined) {
+    console.log(
+      `No detached crawl found in ${settings.outputDir} (no ${PID_FILENAME}).`,
+    );
+    return 1;
+  }
+
+  const lines = [
+    `Detached crawl in ${settings.outputDir}`,
+    `  pid:      ${pidFile.pid}`,
+    `  ids:      ${pidFile.ids}`,
+    `  started:  ${pidFile.startedAt}`,
+  ];
+
+  const statusFile = await readJsonFile<StatusFile>(
+    path.join(settings.outputDir, STATUS_FILENAME),
+  );
+
+  let exitCode: number;
+  if (statusFile !== undefined) {
+    lines.push(`  finished: ${statusFile.finishedAt}`);
+    lines.push(
+      `  status:   ${statusFile.exitCode === 0 ? "succeeded" : "failed"} (exit code ${statusFile.exitCode})`,
+    );
+    exitCode = statusFile.exitCode;
+  } else if (isProcessAlive(pidFile.pid)) {
+    lines.push("  status:   running");
+    exitCode = 0;
+  } else {
+    lines.push(
+      "  status:   not running (no completion record - it may have crashed)",
+    );
+    exitCode = 1;
+  }
+
+  lines.push(`  log:      ${path.join(settings.outputDir, LOG_FILENAME)}`);
+  console.log(lines.join("\n"));
+  return exitCode;
 }
 
 // Writes only new candidates (not a seed id, not already cached), grouped by field path like the web app's export.
@@ -185,17 +324,17 @@ async function writeCrawlCandidates(
   samples: Awaited<ReturnType<typeof fetchAndCacheSamples>>,
   seedIds: readonly string[],
   outputDir: string,
+  cache: SampleCache,
   format: CrawlCandidatesFormat,
 ): Promise<void> {
   const seeds = new Set(seedIds);
-  const cacheDir = path.join(outputDir, "cache");
 
   const groups: CrawlCandidateField[] = [];
   for (const group of findCrawlCandidates(samples)) {
     const values: string[] = [];
     for (const value of group.values) {
       if (seeds.has(value)) continue;
-      if (await hasCachedSample(cacheDir, value)) continue;
+      if (await hasCachedSample(cache, value)) continue;
       values.push(value);
     }
     if (values.length > 0) groups.push({ path: group.path, values });

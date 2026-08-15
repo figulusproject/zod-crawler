@@ -20,19 +20,23 @@
 #   docker run --rm -v "$(pwd)/out:/out" zod-crawler \
 #     --ids "1,2,3" --url-template "https://example.com/items/{id}" --output /out
 
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 
 # Copy manifests first so `npm ci` is cached across source-only changes.
 COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/package.json
+COPY packages/pipeline/package.json packages/pipeline/package.json
+COPY packages/pipeline-node/package.json packages/pipeline-node/package.json
 COPY apps/cli/package.json apps/cli/package.json
 RUN npm ci
 
 COPY tsconfig.base.json ./
 COPY packages/core packages/core
+COPY packages/pipeline packages/pipeline
+COPY packages/pipeline-node packages/pipeline-node
 COPY apps/cli apps/cli
-# Builds only apps/cli + packages/core - apps/web isn't copied into this context.
+# Builds apps/cli's full project-reference closure (core, pipeline, pipeline-node) - apps/web isn't copied into this context.
 RUN npx tsc -b apps/cli && chmod +x apps/cli/dist/index.js
 
 # bullmq/ioredis are optional peer dependencies (see apps/cli/README.md's
@@ -48,7 +52,7 @@ RUN npm prune --omit=dev \
   && find packages apps -maxdepth 2 -type d -name src -prune -exec rm -rf {} + \
   && find packages apps -maxdepth 2 -name "*.tsbuildinfo" -delete
 
-FROM node:22-alpine AS runtime-external
+FROM node:24-alpine AS runtime-external
 WORKDIR /app
 
 # Runs as the non-root "node" user (built into the base image, uid 1000)

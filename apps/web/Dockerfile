@@ -26,17 +26,27 @@
 #     -e REDIS_URL=redis://your-valkey-host:6379 \
 #     zod-crawler-web:slim
 
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/package.json
+COPY packages/pipeline/package.json packages/pipeline/package.json
+COPY packages/pipeline-node/package.json packages/pipeline-node/package.json
+COPY packages/components/package.json packages/components/package.json
 COPY apps/web/package.json apps/web/package.json
 RUN npm ci
 
 COPY tsconfig.base.json ./
 COPY packages/core packages/core
+COPY packages/pipeline packages/pipeline
+COPY packages/pipeline-node packages/pipeline-node
+COPY packages/components packages/components
 COPY apps/web apps/web
+# @zod-crawler/components isn't in tsconfig.server.json's reference graph -
+# vite build resolves it from packages/components/dist via its exports map,
+# so it needs building explicitly before the client bundle does.
+RUN npx tsc -b packages/components
 RUN npm run build --workspace=@zod-crawler/web
 
 # bullmq/ioredis are optional peer dependencies (see apps/web/README.md's
@@ -47,13 +57,17 @@ RUN npm install --no-save --omit=dev bullmq@^6 ioredis@^6
 
 RUN npm prune --omit=dev
 
-FROM node:22-alpine AS runtime-external
+FROM node:24-alpine AS runtime-external
 WORKDIR /app
 
 COPY --from=builder --chown=node:node /app/package.json ./
 COPY --from=builder --chown=node:node /app/node_modules ./node_modules
 COPY --from=builder --chown=node:node /app/packages/core/package.json packages/core/package.json
 COPY --from=builder --chown=node:node /app/packages/core/dist packages/core/dist
+COPY --from=builder --chown=node:node /app/packages/pipeline/package.json packages/pipeline/package.json
+COPY --from=builder --chown=node:node /app/packages/pipeline/dist packages/pipeline/dist
+COPY --from=builder --chown=node:node /app/packages/pipeline-node/package.json packages/pipeline-node/package.json
+COPY --from=builder --chown=node:node /app/packages/pipeline-node/dist packages/pipeline-node/dist
 COPY --from=builder --chown=node:node /app/apps/web/package.json apps/web/package.json
 COPY --from=builder --chown=node:node /app/apps/web/dist apps/web/dist
 USER node

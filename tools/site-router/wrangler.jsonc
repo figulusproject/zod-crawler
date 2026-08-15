@@ -1,0 +1,15 @@
+{
+  "name": "zod-crawler-site-router",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-14",
+  "routes": ["zodcrawler.figulus.dev/*"],
+  "assets": {
+    "directory": "../../docs",
+    "binding": "ASSETS",
+    "run_worker_first": true,
+  },
+  "vars": {
+    "REPO_URL": "https://github.com/figulusproject/zod-crawler",
+    "DEMO_ORIGIN": "https://zod-crawler.vercel.app",
+  },
+}

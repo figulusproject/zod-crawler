@@ -1,0 +1,24 @@
+{
+  "name": "@zod-crawler/cors-proxy",
+  "version": "1.2.0",
+  "description": "CORS proxy Cloudflare Worker for zod-crawler's client-only browser demo.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "types": "wrangler types",
+    "typecheck": "wrangler types && tsc --noEmit",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.21.3",
+    "wrangler": "^4.123.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/figulusproject/zod-crawler",
+    "directory": "tools/cors-proxy"
+  },
+  "author": "The Figulus Project",
+  "license": "MIT"
+}

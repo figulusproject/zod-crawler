@@ -1,34 +1,12 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import { listActiveCrawls, startCrawl, subscribeToCrawl } from "@/lib/api";
+import type { JobState, ProgressRow } from "@zod-crawler/components/crawl";
 import type {
   CrawlCompleteEvent,
   CrawlErrorEvent,
   CrawlProgressEvent,
   CrawlRequest,
 } from "../../shared/events";
-
-export interface ProgressRow {
-  id: string;
-  status: "pending" | CrawlProgressEvent["status"];
-  error?: string;
-}
-
-interface JobRequestSummary {
-  ids: string[];
-  schemaName?: string;
-  delayMs?: number;
-  urlTemplate?: string;
-}
-
-export interface JobState {
-  jobId: string;
-  status: "running" | "done" | "error";
-  startedAt: string;
-  request: JobRequestSummary;
-  rows: ProgressRow[];
-  result: CrawlCompleteEvent | null;
-  errorMessage: string | null;
-}
 
 interface CrawlJobsState {
   jobIds: string[]; // newest-first
@@ -42,7 +20,7 @@ type Action =
       type: "jobAdded";
       jobId: string;
       startedAt: string;
-      request: JobRequestSummary;
+      request: JobState["request"];
       status?: JobState["status"];
     }
   | { type: "progress"; jobId: string; event: CrawlProgressEvent }

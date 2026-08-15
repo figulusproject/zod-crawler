@@ -1,0 +1,46 @@
+{
+  "name": "@zod-crawler/web-demo",
+  "version": "1.2.0",
+  "description": "Client-only browser demo for zod-crawler.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "clean": "rm -rf dist *.tsbuildinfo node_modules/.tmp",
+    "lint": "eslint .",
+    "format": "prettier --write \"**/*.{ts,tsx}\"",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@zod-crawler/components": "^1.2.0",
+    "@zod-crawler/core": "^1.2.0",
+    "@zod-crawler/pipeline": "^1.2.0",
+    "@zod-crawler/pipeline-browser": "^1.2.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10",
+    "@tailwindcss/vite": "^4",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6",
+    "eslint": "^10",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "tailwindcss": "^4",
+    "typescript": "~6",
+    "typescript-eslint": "^8",
+    "vite": "^8"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/figulusproject/zod-crawler",
+    "directory": "apps/web-demo"
+  },
+  "author": "The Figulus Project",
+  "license": "MIT"
+}

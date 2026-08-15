@@ -82,6 +82,25 @@ export const TodoSchema = z.object({
 
 The CLI also prints a validation summary (how many of the cached samples parsed successfully against the generated schema) and exits non-zero if any didn't.
 
+## Checking on a detached crawl
+
+A crawl started with `--detach` writes a `<output>/zod-crawler.pid` file when it starts and a `<output>/zod-crawler.status.json` file when it finishes. Point `status` at the same `--output` directory to read them back:
+
+```bash
+npx @zod-crawler/cli status --output ./out
+```
+
+```
+Detached crawl in ./out
+  pid:      12345
+  ids:      3
+  started:  2026-08-14T10:00:00.000Z
+  status:   running
+  log:      out/zod-crawler.log
+```
+
+Once the crawl finishes, `status` reports its recorded exit code instead (`succeeded`/`failed`) and exits with that same code, so it's scriptable (`zod-crawler status --output ./out && echo done`). If the process died without writing a status file, it reports `not running` and exits non-zero. If `--output` has no `zod-crawler.pid` at all, it reports that no detached crawl was found there.
+
 ## How it works
 
 This is a thin wrapper around [`@zod-crawler/core`](core-usage.md). It fetches each id, caching raw responses to disk and resuming from cache on re-runs, merges the samples' shapes to infer a Zod schema, validates every cached sample against that schema in-process, and writes the result.

@@ -8,11 +8,12 @@ import {
   it,
   vi,
 } from "vitest";
+import { fetchAndCacheSamples } from "@zod-crawler/pipeline";
 import {
-  fetchAndCacheSamples,
+  createNodeSampleCache,
   listActiveCrawls,
   registerActiveCrawl,
-} from "@zod-crawler/core";
+} from "@zod-crawler/pipeline-node";
 import type { CrawlCompleteEvent } from "../shared/events.js";
 import type { ResolvedCrawlRequest } from "./requestSchema.js";
 
@@ -82,7 +83,7 @@ describe("crawlJobs (resume)", () => {
     // "Before the crash": id "a" was already fetched and cached on disk.
     await fetchAndCacheSamples({
       ids: ["a"],
-      outputDir,
+      cache: createNodeSampleCache(outputDir),
       delayMs: 0,
       fetchOne: async (url) => {
         const response = await fetch(url);

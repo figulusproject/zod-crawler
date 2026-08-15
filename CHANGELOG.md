@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.0] - 2026-08-15
+
+### Added
+
+- `@zod-crawler/pipeline`: a new package, split out of `@zod-crawler/core`, holding the platform-portable half of the crawl pipeline (`fetchAndCacheSamples`, the `SampleCache` interface, `hashId`, `hasCachedSample`, `fetchProgressEvent`) with zero Node dependency of its own.
+- `@zod-crawler/pipeline-node`: a new package holding the Node/Redis backend (`createNodeSampleCache`, `runBullmqFetchQueue`, `domainCooldownGate`, `redisConnection`, `crawlRegistry`), depending on `@zod-crawler/pipeline`. `apps/cli` and `apps/web`'s server now branch on `redisUrl` themselves to pick `fetchAndCacheSamples` or `runBullmqFetchQueue`, instead of that branch living inside a single fetch function.
+- `@zod-crawler/pipeline-browser`: a new package with `createCacheApiSampleCache`, a browser `SampleCache` backed by the Cache API, and `createBrowserUrlFetcher`, a `fetch`-based fetcher that retries through a CORS proxy only when a direct request throws (network/CORS failure), remembering per-job which origins already needed the proxy.
+- `apps/web-demo`: a new client-only Vite/React app rendering the same `CrawlForm`/`JobList`/`JobDetail` as `apps/web`, running a full crawl (`fetchAndCacheSamples` -> `inferSchema` -> `validateSamples` -> `findCrawlCandidates`) entirely in a browser Web Worker with no server, using `@zod-crawler/pipeline-browser`'s cache and fetcher and `prettier/standalone` for formatting. Deployed at https://zodcrawler.figulus.dev/demo. A crawl doesn't survive a page refresh (no SSE/job registry, unlike `apps/web`) - a refresh just restarts.
+- `@zod-crawler/components`: a new shared shadcn/Tailwind UI package holding the UI and crawl components moved out of `apps/web`, so `apps/web` and `apps/web-demo` render from the same components.
+- `tools/cors-proxy`: a self-hosted CORS proxy at `zodcrawler.figulus.dev/proxy` that the demo falls back to when a target API doesn't allow direct cross-origin fetches, rate-limited per IP and capped daily.
+- `tools/site-router`: routes `zodcrawler.figulus.dev`'s docs, the new demo, and everything else to the right place.
+- `@zod-crawler/cli`: a `status` subcommand (`zod-crawler status --output <dir>`) reports on a crawl started with `--detach` - running, finished (with its recorded exit code), or crashed - by reading `<output>/zod-crawler.pid` and `<output>/zod-crawler.status.json`, both written by the detached run itself.
+
+### Changed
+
+- CI workflow (`ci.yml`) and `apps/cli`/`apps/web`'s Docker images now run on Node 22/24/26 instead of 20/22/24.
+- `@zod-crawler/cli`: upgraded from `zod-cli-flags@1.0.2` to its renamed successor, `zod-commands@1.1.3`. `--ids`/`--ids-file` now use `exclusiveGroups` to declare "exactly one of" instead of a hand-written check in the parse transform, so `cli.usage` renders it as `(--ids <value> | --ids-file <value>)`.
+
 ## [1.1.0] - 2026-08-12
 
 ### Added
