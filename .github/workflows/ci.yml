@@ -11,6 +11,7 @@ jobs:
   test:
     permissions:
       contents: write
+      pull-requests: write
     strategy:
       fail-fast: false
       matrix:
@@ -76,10 +77,16 @@ jobs:
           if ! git diff --quiet -- docs/coverage-badge.json; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
+            branch="chore/update-coverage-badge-${{ github.run_id }}"
+            git checkout -b "$branch"
             git add docs/coverage-badge.json
             git commit -m "update coverage badge [skip ci]"
-            git push
+            git push origin "$branch"
+            gh pr create --base main --head "$branch" --title "Update coverage badge" --body "Automated coverage badge update."
+            gh pr merge "$branch" --squash --delete-branch --subject "update coverage badge [skip ci]"
           fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Format check
         run: npm run format:check
