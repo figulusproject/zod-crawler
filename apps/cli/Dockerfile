@@ -26,13 +26,17 @@ WORKDIR /app
 # Copy manifests first so `npm ci` is cached across source-only changes.
 COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/package.json
+COPY packages/pipeline/package.json packages/pipeline/package.json
+COPY packages/pipeline-node/package.json packages/pipeline-node/package.json
 COPY apps/cli/package.json apps/cli/package.json
 RUN npm ci
 
 COPY tsconfig.base.json ./
 COPY packages/core packages/core
+COPY packages/pipeline packages/pipeline
+COPY packages/pipeline-node packages/pipeline-node
 COPY apps/cli apps/cli
-# Builds only apps/cli + packages/core - apps/web isn't copied into this context.
+# Builds apps/cli's full project-reference closure (core, pipeline, pipeline-node) - apps/web isn't copied into this context.
 RUN npx tsc -b apps/cli && chmod +x apps/cli/dist/index.js
 
 # bullmq/ioredis are optional peer dependencies (see apps/cli/README.md's
