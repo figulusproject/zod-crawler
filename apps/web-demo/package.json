@@ -1,6 +1,6 @@
 {
   "name": "@zod-crawler/web-demo",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Client-only browser demo for zod-crawler.",
   "private": true,
   "type": "module",
@@ -14,10 +14,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@zod-crawler/components": "^1.1.0",
-    "@zod-crawler/core": "^1.1.0",
-    "@zod-crawler/pipeline": "^1.1.0",
-    "@zod-crawler/pipeline-browser": "^1.1.0"
+    "@zod-crawler/components": "^1.2.0",
+    "@zod-crawler/core": "^1.2.0",
+    "@zod-crawler/pipeline": "^1.2.0",
+    "@zod-crawler/pipeline-browser": "^1.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^10",

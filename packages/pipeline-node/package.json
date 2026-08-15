@@ -1,6 +1,6 @@
 {
   "name": "@zod-crawler/pipeline-node",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Node/Redis-backed fetch-and-cache backends for zod-crawler's schema-inference pipeline.",
   "type": "module",
   "main": "./dist/index.js",
@@ -23,8 +23,8 @@
     "prepack": "cp ../../LICENSE ./LICENSE"
   },
   "dependencies": {
-    "@zod-crawler/core": "^1.1.0",
-    "@zod-crawler/pipeline": "^1.1.0"
+    "@zod-crawler/core": "^1.2.0",
+    "@zod-crawler/pipeline": "^1.2.0"
   },
   "peerDependencies": {
     "bullmq": "^6.0.0",

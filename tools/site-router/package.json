@@ -1,6 +1,6 @@
 {
   "name": "@zod-crawler/site-router",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Path-based router Cloudflare Worker for zod-crawler's zodcrawler.figulus.dev - proxies /docs to the project's docsify site and redirects everything else to the GitHub repo.",
   "private": true,
   "type": "module",
