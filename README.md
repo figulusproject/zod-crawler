@@ -29,6 +29,7 @@ everything else below.
 
 - [CLI](/apps/cli/) | A full-featured CLI tool
 - [Web](/apps/web/) | A Docker-deployed single-page UI for the same pipeline
+- [Demo](/apps/web-demo/) | A browser-only version of the Web UI, no server required - https://zodcrawler.figulus.dev/demo
 - [Core Library](/packages/core/) | Can be called from other ECMAScript projects
 
 ## Zod Compatibility

@@ -27,6 +27,7 @@ Designed for Zod v4 natively, not backwards-compatible with Zod v3 (uses new `z.
 
 - [`@zod-crawler/cli`](cli.md): a full-featured CLI tool
 - [`@zod-crawler/web`](web.md): a Docker-deployed single-page UI for the same pipeline
+- [Demo](demo.md): a browser-only version of the Web UI, no server required
 - [`@zod-crawler/core`](core-usage.md): the schema-inference engine both of the above wrap, usable directly from other ECMAScript projects
 
 ## Once you're up and running
