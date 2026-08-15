@@ -9,7 +9,7 @@ describe("parseCliArgs", () => {
     const result = parseCliArgs(["--ids", "a, b ,a,c", "--output", "/tmp/out"]);
 
     expect(result.ok).toBe(true);
-    if (result.ok) {
+    if (result.ok && result.command === "crawl") {
       expect(result.settings.ids).toEqual(["a", "b", "c"]);
       expect(result.settings.delayMs).toBe(7500);
       expect(result.settings.schemaName).toBe("InferredSchema");
@@ -31,7 +31,7 @@ describe("parseCliArgs", () => {
     ]);
 
     expect(result.ok).toBe(true);
-    if (result.ok) {
+    if (result.ok && result.command === "crawl") {
       expect(result.settings.emitCrawlCandidates).toBe(true);
       expect(result.settings.crawlCandidatesFormat).toBe("txt");
     }
@@ -50,7 +50,7 @@ describe("parseCliArgs", () => {
       ]);
 
       expect(result.ok).toBe(true);
-      if (result.ok) {
+      if (result.ok && result.command === "crawl") {
         expect(result.settings.crawlCandidatesFormat).toBe("yaml");
       }
     });
@@ -96,7 +96,7 @@ describe("parseCliArgs", () => {
     ]);
 
     expect(result.ok).toBe(true);
-    if (result.ok) {
+    if (result.ok && result.command === "crawl") {
       expect(result.settings.useZodTransformers).toBe(true);
     }
   });
@@ -111,7 +111,7 @@ describe("parseCliArgs", () => {
     ]);
 
     expect(result.ok).toBe(true);
-    if (result.ok) {
+    if (result.ok && result.command === "crawl") {
       expect(result.settings.stopOnError).toBe(true);
     }
   });
@@ -120,7 +120,7 @@ describe("parseCliArgs", () => {
     const result = parseCliArgs(["--ids", "a", "--output", "/tmp/out"]);
 
     expect(result.ok).toBe(true);
-    if (result.ok) {
+    if (result.ok && result.command === "crawl") {
       expect(result.settings.detach).toBe(false);
     }
   });
@@ -130,7 +130,8 @@ describe("parseCliArgs", () => {
       const result = parseCliArgs(["--ids", "a", "--output", "/tmp/out", flag]);
 
       expect(result.ok, `${flag} should parse`).toBe(true);
-      if (result.ok) expect(result.settings.detach).toBe(true);
+      if (result.ok && result.command === "crawl")
+        expect(result.settings.detach).toBe(true);
     }
   });
 
@@ -149,7 +150,7 @@ describe("parseCliArgs", () => {
     ]);
 
     expect(result.ok).toBe(true);
-    if (result.ok) {
+    if (result.ok && result.command === "crawl") {
       expect(result.settings.urlTemplate).toBe("https://example.com/{id}.json");
       expect(result.settings.delayMs).toBe(100);
       expect(result.settings.schemaName).toBe("MySchema");
@@ -264,7 +265,7 @@ describe("parseCliArgs", () => {
       const result = parseCliArgs(["--ids", "a", "--output", "/tmp/out"]);
 
       expect(result.ok).toBe(true);
-      if (result.ok) {
+      if (result.ok && result.command === "crawl") {
         expect(result.settings.redisUrl).toBeUndefined();
         expect(result.settings.concurrency).toBeUndefined();
       }
@@ -282,7 +283,7 @@ describe("parseCliArgs", () => {
       ]);
 
       expect(result.ok).toBe(true);
-      if (result.ok) {
+      if (result.ok && result.command === "crawl") {
         expect(result.settings.redisUrl).toBe("redis://localhost:6379");
         expect(result.settings.concurrency).toBe(1);
       }
@@ -293,7 +294,7 @@ describe("parseCliArgs", () => {
       const result = parseCliArgs(["--ids", "a", "--output", "/tmp/out"]);
 
       expect(result.ok).toBe(true);
-      if (result.ok) {
+      if (result.ok && result.command === "crawl") {
         expect(result.settings.redisUrl).toBe("redis://env-host:6379");
       }
     });
@@ -310,7 +311,7 @@ describe("parseCliArgs", () => {
       ]);
 
       expect(result.ok).toBe(true);
-      if (result.ok) {
+      if (result.ok && result.command === "crawl") {
         expect(result.settings.redisUrl).toBe("redis://flag-host:6379");
       }
     });
@@ -328,7 +329,8 @@ describe("parseCliArgs", () => {
       ]);
 
       expect(result.ok).toBe(true);
-      if (result.ok) expect(result.settings.concurrency).toBe(4);
+      if (result.ok && result.command === "crawl")
+        expect(result.settings.concurrency).toBe(4);
     });
 
     it("rejects --concurrency without a Redis URL (flag or env)", () => {
@@ -383,7 +385,7 @@ describe("parseCliArgs", () => {
       const result = parseCliArgs(["--ids-file", file, "--output", "/tmp/out"]);
 
       expect(result.ok).toBe(true);
-      if (result.ok) {
+      if (result.ok && result.command === "crawl") {
         expect(result.settings.ids).toEqual(["a", "b", "c"]);
       }
     });
@@ -410,7 +412,7 @@ describe("parseCliArgs", () => {
       const result = parseCliArgs(["--ids-file", file, "--output", "/tmp/out"]);
 
       expect(result.ok).toBe(true);
-      if (result.ok) {
+      if (result.ok && result.command === "crawl") {
         expect(result.settings.ids).toEqual(["a", "b", "c"]);
       }
     });
@@ -425,7 +427,7 @@ describe("parseCliArgs", () => {
       const result = parseCliArgs(["--ids-file", file, "--output", "/tmp/out"]);
 
       expect(result.ok).toBe(true);
-      if (result.ok) {
+      if (result.ok && result.command === "crawl") {
         expect(result.settings.ids).toEqual(["a", "b", "c"]);
       }
     });
@@ -437,7 +439,7 @@ describe("parseCliArgs", () => {
       const result = parseCliArgs(["--ids-file", file, "--output", "/tmp/out"]);
 
       expect(result.ok).toBe(true);
-      if (result.ok) {
+      if (result.ok && result.command === "crawl") {
         expect(result.settings.ids).toEqual(["a", "c", "b"]);
       }
     });
@@ -463,6 +465,39 @@ describe("parseCliArgs", () => {
 
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.message).toMatch(/--ids-file/);
+    });
+  });
+
+  it('accepts an explicit leading "crawl" token, same as omitting it', () => {
+    const result = parseCliArgs([
+      "crawl",
+      "--ids",
+      "a",
+      "--output",
+      "/tmp/out",
+    ]);
+
+    expect(result.ok).toBe(true);
+    if (result.ok && result.command === "crawl") {
+      expect(result.settings.ids).toEqual(["a"]);
+    }
+  });
+
+  describe("status", () => {
+    it("parses --output into outputDir", () => {
+      const result = parseCliArgs(["status", "--output", "/tmp/out"]);
+
+      expect(result.ok).toBe(true);
+      if (result.ok && result.command === "status") {
+        expect(result.settings.outputDir).toBe("/tmp/out");
+      }
+    });
+
+    it("rejects a missing --output", () => {
+      const result = parseCliArgs(["status"]);
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.message).toMatch(/--output/);
     });
   });
 });
