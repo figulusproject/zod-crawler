@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
-import { readdir, readFile, mkdtemp, rm } from "node:fs/promises";
+import { readdir, readFile, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -82,6 +82,10 @@ describe("runCli", () => {
     const cacheFiles = await readdir(path.join(outputDir, "cache"));
     // Two id cache files plus the manifest.
     expect(cacheFiles.filter((f) => f !== "manifest.json")).toHaveLength(2);
+
+    const outputFiles = await readdir(outputDir);
+    expect(outputFiles).not.toContain("zod-crawler.pid");
+    expect(outputFiles).not.toContain("zod-crawler.status.json");
   });
 
   it("writes new, deduped crawl candidates when --emit-crawl-candidates is set", async () => {
@@ -346,8 +350,11 @@ describe("runCli", () => {
 
       expect(code).toBe(0);
       expect(spawn).toHaveBeenCalledTimes(1);
-      const [command, args] = vi.mocked(spawn).mock.calls[0];
+      const [command, args, options] = vi.mocked(spawn).mock.calls[0];
       expect(command).toBe(process.execPath);
+      expect(
+        (options as { env?: Record<string, string | undefined> }).env,
+      ).toMatchObject({ ZOD_CRAWLER_DETACHED: "1" });
       expect(args).toEqual(
         expect.arrayContaining([
           "--output",
@@ -384,6 +391,12 @@ describe("runCli", () => {
           ),
         ),
       ).toBe(true);
+
+      const pidFile = JSON.parse(
+        await readFile(path.join(outputDir, "zod-crawler.pid"), "utf8"),
+      );
+      expect(pidFile).toMatchObject({ pid: child.pid, ids: 2 });
+      expect(typeof pidFile.startedAt).toBe("string");
 
       consoleLog.mockRestore();
     });
@@ -458,6 +471,193 @@ describe("runCli", () => {
       await rm(idsFilePath, { force: true });
 
       consoleError.mockRestore();
+    });
+  });
+
+  describe("ZOD_CRAWLER_DETACHED (child-side status tracking)", () => {
+    const originalEnv = process.env.ZOD_CRAWLER_DETACHED;
+
+    beforeEach(() => {
+      process.env.ZOD_CRAWLER_DETACHED = "1";
+    });
+
+    afterEach(() => {
+      if (originalEnv === undefined) delete process.env.ZOD_CRAWLER_DETACHED;
+      else process.env.ZOD_CRAWLER_DETACHED = originalEnv;
+    });
+
+    it("writes zod-crawler.status.json with exit code 0 on success", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => jsonResponse({ title: "Book" })),
+      );
+
+      const code = await runCli([
+        "--ids",
+        "a",
+        "--output",
+        outputDir,
+        "--delay",
+        "100",
+        "--url-template",
+        "https://example.com/{id}.json",
+      ]);
+
+      expect(code).toBe(0);
+      const statusFile = JSON.parse(
+        await readFile(path.join(outputDir, "zod-crawler.status.json"), "utf8"),
+      );
+      expect(statusFile.exitCode).toBe(0);
+      expect(typeof statusFile.finishedAt).toBe("string");
+    });
+
+    it("writes zod-crawler.status.json with a non-zero exit code on failure", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(
+          async () =>
+            ({ ok: false, status: 404, statusText: "Not Found" }) as Response,
+        ),
+      );
+
+      const code = await runCli([
+        "--ids",
+        "a",
+        "--output",
+        outputDir,
+        "--delay",
+        "100",
+        "--url-template",
+        "https://example.com/{id}.json",
+        "--stop-on-error",
+      ]);
+
+      expect(code).toBe(1);
+      const statusFile = JSON.parse(
+        await readFile(path.join(outputDir, "zod-crawler.status.json"), "utf8"),
+      );
+      expect(statusFile.exitCode).toBe(1);
+    });
+  });
+
+  describe("status", () => {
+    it("reports no crawl found when there's no pidfile", async () => {
+      const consoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      const code = await runCli(["status", "--output", outputDir]);
+
+      expect(code).toBe(1);
+      expect(
+        consoleLog.mock.calls.some((call) =>
+          String(call[0]).includes("No detached crawl found"),
+        ),
+      ).toBe(true);
+      consoleLog.mockRestore();
+    });
+
+    it("reports running when the pid is alive and no status file exists", async () => {
+      await writeFile(
+        path.join(outputDir, "zod-crawler.pid"),
+        JSON.stringify({
+          pid: process.pid,
+          startedAt: new Date().toISOString(),
+          ids: 2,
+        }),
+      );
+      const consoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      const code = await runCli(["status", "--output", outputDir]);
+
+      expect(code).toBe(0);
+      expect(
+        consoleLog.mock.calls.some((call) =>
+          String(call[0]).includes("status:   running"),
+        ),
+      ).toBe(true);
+      consoleLog.mockRestore();
+    });
+
+    it("reports the recorded exit code when a status file is present", async () => {
+      await writeFile(
+        path.join(outputDir, "zod-crawler.pid"),
+        JSON.stringify({
+          pid: process.pid,
+          startedAt: new Date().toISOString(),
+          ids: 1,
+        }),
+      );
+      await writeFile(
+        path.join(outputDir, "zod-crawler.status.json"),
+        JSON.stringify({ exitCode: 0, finishedAt: new Date().toISOString() }),
+      );
+      const consoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      const code = await runCli(["status", "--output", outputDir]);
+
+      expect(code).toBe(0);
+      expect(
+        consoleLog.mock.calls.some((call) =>
+          String(call[0]).includes("succeeded"),
+        ),
+      ).toBe(true);
+      consoleLog.mockRestore();
+    });
+
+    it("reports failure when the recorded exit code is non-zero", async () => {
+      await writeFile(
+        path.join(outputDir, "zod-crawler.pid"),
+        JSON.stringify({
+          pid: process.pid,
+          startedAt: new Date().toISOString(),
+          ids: 1,
+        }),
+      );
+      await writeFile(
+        path.join(outputDir, "zod-crawler.status.json"),
+        JSON.stringify({ exitCode: 1, finishedAt: new Date().toISOString() }),
+      );
+      const consoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      const code = await runCli(["status", "--output", outputDir]);
+
+      expect(code).toBe(1);
+      expect(
+        consoleLog.mock.calls.some((call) =>
+          String(call[0]).includes("failed"),
+        ),
+      ).toBe(true);
+      consoleLog.mockRestore();
+    });
+
+    it("reports not running when the pid is dead and there's no status file", async () => {
+      await writeFile(
+        path.join(outputDir, "zod-crawler.pid"),
+        JSON.stringify({
+          pid: 999999,
+          startedAt: new Date().toISOString(),
+          ids: 1,
+        }),
+      );
+      const killSpy = vi
+        .spyOn(process, "kill")
+        .mockImplementation((): never => {
+          const error = new Error("no such process") as NodeJS.ErrnoException;
+          error.code = "ESRCH";
+          throw error;
+        });
+      const consoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      const code = await runCli(["status", "--output", outputDir]);
+
+      expect(code).toBe(1);
+      expect(
+        consoleLog.mock.calls.some((call) =>
+          String(call[0]).includes("not running"),
+        ),
+      ).toBe(true);
+
+      killSpy.mockRestore();
+      consoleLog.mockRestore();
     });
   });
 });

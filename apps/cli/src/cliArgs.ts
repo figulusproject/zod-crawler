@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { z } from "zod";
-import { defineCli } from "zod-commands";
+import { defineCli, defineCommands } from "zod-commands";
 import { numberString } from "zod-transformers";
 import {
   SCHEMA_NAME_PATTERN,
@@ -29,10 +29,16 @@ export interface CliSettings {
   detach: boolean;
 }
 
-export type ParseCliArgsResult =
-  { ok: true; settings: CliSettings } | { ok: false; message: string };
+export interface StatusSettings {
+  outputDir: string;
+}
 
-const cli = defineCli({
+export type ParseCliArgsResult =
+  | { ok: true; command: "crawl"; settings: CliSettings }
+  | { ok: true; command: "status"; settings: StatusSettings }
+  | { ok: false; message: string; usage: string };
+
+const crawlCli = defineCli({
   flags: {
     ids: { schema: z.string().optional(), placeholder: "id1,id2,..." },
     idsFile: {
@@ -85,129 +91,164 @@ const cli = defineCli({
   exclusiveGroups: [{ flags: ["ids", "idsFile"], required: true }],
 });
 
-export const usage = cli.usage;
+const settingsSchema = crawlCli.flagsSchema.transform(
+  (raw, ctx): CliSettings => {
+    let rawIds: string[];
+    if (raw.ids !== undefined) {
+      rawIds = raw.ids
+        .split(",")
+        .map((id) => id.trim())
+        .filter((id) => id.length > 0);
+    } else {
+      const idsFileFormat = crawlCandidatesFormatFromExtension(raw.idsFile!);
+      if (idsFileFormat === undefined) {
+        ctx.addIssue({
+          code: "custom",
+          message: `--ids-file "${raw.idsFile}" has an unrecognized extension - expected one of: ${CRAWL_CANDIDATES_FORMATS.join(", ")} (or .yml).`,
+        });
+        return z.NEVER;
+      }
 
-const settingsSchema = cli.flagsSchema.transform((raw, ctx): CliSettings => {
-  let rawIds: string[];
-  if (raw.ids !== undefined) {
-    rawIds = raw.ids
-      .split(",")
-      .map((id) => id.trim())
-      .filter((id) => id.length > 0);
-  } else {
-    const idsFileFormat = crawlCandidatesFormatFromExtension(raw.idsFile!);
-    if (idsFileFormat === undefined) {
+      let fileContents: string;
+      try {
+        fileContents = readFileSync(raw.idsFile!, "utf8");
+      } catch (error) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Could not read --ids-file "${raw.idsFile}": ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        });
+        return z.NEVER;
+      }
+
+      try {
+        rawIds = idsParsers[idsFileFormat](fileContents);
+      } catch (error) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Could not parse --ids-file "${raw.idsFile}" as ${idsFileFormat}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        });
+        return z.NEVER;
+      }
+    }
+
+    const ids = [...new Set(rawIds)];
+    if (ids.length === 0) {
       ctx.addIssue({
         code: "custom",
-        message: `--ids-file "${raw.idsFile}" has an unrecognized extension - expected one of: ${CRAWL_CANDIDATES_FORMATS.join(", ")} (or .yml).`,
+        message: "At least one id is required (from --ids or --ids-file).",
       });
       return z.NEVER;
     }
 
-    let fileContents: string;
-    try {
-      fileContents = readFileSync(raw.idsFile!, "utf8");
-    } catch (error) {
+    if (raw.urlTemplate !== undefined && !raw.urlTemplate.includes("{id}")) {
       ctx.addIssue({
         code: "custom",
-        message: `Could not read --ids-file "${raw.idsFile}": ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        message: `--url-template must contain the literal "{id}" placeholder, got "${raw.urlTemplate}".`,
       });
       return z.NEVER;
     }
 
-    try {
-      rawIds = idsParsers[idsFileFormat](fileContents);
-    } catch (error) {
+    if (raw.output === undefined || raw.output.length === 0) {
+      ctx.addIssue({ code: "custom", message: "--output is required." });
+      return z.NEVER;
+    }
+
+    const delayMs = raw.delay ?? DEFAULT_DELAY_MS;
+
+    const schemaName = raw.schemaName ?? DEFAULT_SCHEMA_NAME;
+    if (!SCHEMA_NAME_PATTERN.test(schemaName)) {
       ctx.addIssue({
         code: "custom",
-        message: `Could not parse --ids-file "${raw.idsFile}" as ${idsFileFormat}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        message: `--schema-name must be a valid identifier, got "${schemaName}".`,
       });
       return z.NEVER;
     }
-  }
 
-  const ids = [...new Set(rawIds)];
-  if (ids.length === 0) {
-    ctx.addIssue({
-      code: "custom",
-      message: "At least one id is required (from --ids or --ids-file).",
-    });
-    return z.NEVER;
-  }
+    if (raw.crawlCandidatesFormat !== undefined && !raw.emitCrawlCandidates) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "--crawl-candidates-format requires --emit-crawl-candidates - it only applies to the crawl candidates file.",
+      });
+      return z.NEVER;
+    }
+    const crawlCandidatesFormat: CrawlCandidatesFormat =
+      raw.crawlCandidatesFormat ?? "txt";
 
-  if (raw.urlTemplate !== undefined && !raw.urlTemplate.includes("{id}")) {
-    ctx.addIssue({
-      code: "custom",
-      message: `--url-template must contain the literal "{id}" placeholder, got "${raw.urlTemplate}".`,
-    });
-    return z.NEVER;
-  }
+    const redisUrl = raw.redisUrl ?? process.env.REDIS_URL;
+    if (raw.concurrency !== undefined && redisUrl === undefined) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "--concurrency requires --redis-url (or a REDIS_URL environment variable) - it only applies to the BullMQ-backed queue.",
+      });
+      return z.NEVER;
+    }
+    const concurrency =
+      redisUrl !== undefined
+        ? (raw.concurrency ?? DEFAULT_CONCURRENCY)
+        : undefined;
 
-  if (raw.output === undefined || raw.output.length === 0) {
-    ctx.addIssue({ code: "custom", message: "--output is required." });
-    return z.NEVER;
-  }
+    return {
+      ids,
+      urlTemplate: raw.urlTemplate,
+      outputDir: raw.output,
+      delayMs,
+      schemaName,
+      emitCrawlCandidates: raw.emitCrawlCandidates,
+      crawlCandidatesFormat,
+      useZodTransformers: raw.zodTransformers,
+      stopOnError: raw.stopOnError,
+      redisUrl,
+      concurrency,
+      detach: raw.detach,
+    };
+  },
+);
 
-  const delayMs = raw.delay ?? DEFAULT_DELAY_MS;
-
-  const schemaName = raw.schemaName ?? DEFAULT_SCHEMA_NAME;
-  if (!SCHEMA_NAME_PATTERN.test(schemaName)) {
-    ctx.addIssue({
-      code: "custom",
-      message: `--schema-name must be a valid identifier, got "${schemaName}".`,
-    });
-    return z.NEVER;
-  }
-
-  if (raw.crawlCandidatesFormat !== undefined && !raw.emitCrawlCandidates) {
-    ctx.addIssue({
-      code: "custom",
-      message:
-        "--crawl-candidates-format requires --emit-crawl-candidates - it only applies to the crawl candidates file.",
-    });
-    return z.NEVER;
-  }
-  const crawlCandidatesFormat: CrawlCandidatesFormat =
-    raw.crawlCandidatesFormat ?? "txt";
-
-  const redisUrl = raw.redisUrl ?? process.env.REDIS_URL;
-  if (raw.concurrency !== undefined && redisUrl === undefined) {
-    ctx.addIssue({
-      code: "custom",
-      message:
-        "--concurrency requires --redis-url (or a REDIS_URL environment variable) - it only applies to the BullMQ-backed queue.",
-    });
-    return z.NEVER;
-  }
-  const concurrency =
-    redisUrl !== undefined
-      ? (raw.concurrency ?? DEFAULT_CONCURRENCY)
-      : undefined;
-
-  return {
-    ids,
-    urlTemplate: raw.urlTemplate,
-    outputDir: raw.output,
-    delayMs,
-    schemaName,
-    emitCrawlCandidates: raw.emitCrawlCandidates,
-    crawlCandidatesFormat,
-    useZodTransformers: raw.zodTransformers,
-    stopOnError: raw.stopOnError,
-    redisUrl,
-    concurrency,
-    detach: raw.detach,
-  };
+const statusCli = defineCli({
+  flags: {
+    output: { schema: z.string().optional(), placeholder: "dir" },
+  },
 });
 
+const statusSettingsSchema = statusCli.flagsSchema.transform(
+  (raw, ctx): StatusSettings => {
+    if (raw.output === undefined || raw.output.length === 0) {
+      ctx.addIssue({ code: "custom", message: "--output is required." });
+      return z.NEVER;
+    }
+    return { outputDir: raw.output };
+  },
+);
+
+const cli = defineCommands({
+  commands: {
+    crawl: { cli: crawlCli, schema: settingsSchema },
+    status: { cli: statusCli, schema: statusSettingsSchema },
+  },
+  defaultCommand: "crawl",
+});
+
+export const usage = cli.usage;
+
 export function parseCliArgs(argv: string[]): ParseCliArgsResult {
-  const result = cli.parse(argv, settingsSchema);
+  const result = cli.parse(argv);
   if (!result.success) {
-    return { ok: false, message: result.error.message };
+    const failedUsage =
+      result.command?.[0] === "status" ? statusCli.usage : crawlCli.usage;
+    return { ok: false, message: result.error.message, usage: failedUsage };
   }
-  return { ok: true, settings: result.data };
+  if (result.command[0] === "status") {
+    return {
+      ok: true,
+      command: "status",
+      settings: result.data as StatusSettings,
+    };
+  }
+  return { ok: true, command: "crawl", settings: result.data as CliSettings };
 }
