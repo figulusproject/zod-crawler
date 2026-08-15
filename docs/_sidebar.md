@@ -1,6 +1,7 @@
 - [Home](/)
 - [CLI](cli.md)
 - [Web](web.md)
+- [Demo](demo.md)
 - [Flags](flags.md)
 - [Crawling further](crawling-further.md)
 - [Advanced queuing](advanced-queuing.md)
