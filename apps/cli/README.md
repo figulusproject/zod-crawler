@@ -11,6 +11,8 @@ Fetches a set of JSON API responses, caches them to disk, and generates a
 Zod v4 schema that validates all of them. It then checks its own work by
 parsing every cached sample against the schema it just generated.
 
+**No install required - try it in the browser at [zodcrawler.figulus.dev/demo](https://zodcrawler.figulus.dev/demo).**
+
 ## Usage
 
 ```bash

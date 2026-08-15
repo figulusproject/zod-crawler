@@ -8,6 +8,8 @@
 
 A Docker-deployed single-page UI for the same crawl pipeline behind [`zod-crawler`](https://zodcrawler.figulus.dev/docs/#/cli). Submit ids, a URL template, and a few flags, and watch the fetch/infer/validate run live instead of reading it off a terminal.
 
+**No Docker required - try it in the browser at [zodcrawler.figulus.dev/demo](https://zodcrawler.figulus.dev/demo).**
+
 ## Usage
 
 ```bash

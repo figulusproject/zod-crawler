@@ -11,6 +11,8 @@ Sometimes, you need to work with an API that isn't well-documented. `zod-crawler
 
 This is perfect for use with tools like [up-fetch](https://github.com/L-Blondy/up-fetch), which is designed for automatic response parsing using an input schema.
 
+**No install required - try it in the browser at [zodcrawler.figulus.dev/demo](https://zodcrawler.figulus.dev/demo).**
+
 ## Quickstart
 
 ```bash
