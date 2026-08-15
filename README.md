@@ -1,7 +1,7 @@
 # zod-crawler
 
 [![CI](https://github.com/figulusproject/zod-crawler/actions/workflows/ci.yml/badge.svg)](https://github.com/figulusproject/zod-crawler/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/endpoint?url=https://zodcrawler.figulus.dev/coverage-badge.json)](https://github.com/figulusproject/zod-crawler/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://zodcrawler.figulus.dev/docs/coverage-badge.json)](https://github.com/figulusproject/zod-crawler/actions/workflows/ci.yml)
 
 > _Everyone has the right to resist occupation._
 
@@ -22,7 +22,7 @@ npx @zod-crawler/cli \
 
 This writes an inferred `./out/schema.ts` and caches every fetched response
 under `./out/cache/`, so re-running the same command doesn't refetch. See
-the [docs site](https://zodcrawler.figulus.dev/) for the full flag list and
+the [docs site](https://zodcrawler.figulus.dev/docs/) for the full flag list and
 everything else below.
 
 ## Apps/Packages
@@ -37,4 +37,4 @@ Designed for Zod v4 natively, not backwards-compatible with Zod v3 (uses new `z.
 
 ## Development
 
-See the [docs site](https://zodcrawler.figulus.dev/#/development) for the full monorepo dev commands.
+See the [docs site](https://zodcrawler.figulus.dev/docs/#/development) for the full monorepo dev commands.

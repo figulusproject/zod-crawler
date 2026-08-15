@@ -3,7 +3,7 @@ import { Info, X } from "lucide-react";
 
 import { Button } from "#components/ui/button";
 
-const WEB_DOCS_URL = "https://zodcrawler.figulus.dev/#/web";
+const WEB_DOCS_URL = "https://zodcrawler.figulus.dev/docs/#/web";
 
 export function BrowserOnlyBanner() {
   const [isHidden, setIsHidden] = useState(false);
